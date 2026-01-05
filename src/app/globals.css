@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .glass {
+    @apply bg-white/40 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl;
+  }
+
+  .glass-card {
+    @apply bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-white/30 dark:border-white/10 shadow-lg rounded-xl;
+  }
+
+  .glass-hover {
+    @apply hover:bg-white/60 dark:hover:bg-slate-900/60 transition-all duration-300;
+  }
+}
+
+@layer base {
+  :root {
+    /* Glassmorphism Palette - Light Mode */
+    /* Background: Soft gradient base */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    /* Glass Effect Base */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Vibrant Accents */
+    --primary: 200 90% 40%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 180 70% 90%;
+    --secondary-foreground: 180 100% 25%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 180 70% 90%;
+    --accent-foreground: 180 100% 25%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 200 90% 40%;
+    --radius: 1rem; /* More rounded for modern look */
+
+    /* Chart Colors - Vivid Glass */
+    --chart-1: 190 90% 50%;
+    --chart-2: 170 80% 50%;
+    --chart-3: 210 80% 60%;
+    --chart-4: 280 70% 60%;
+    --chart-5: 340 70% 60%;
+  }
+
+  .dark {
+    /* Glassmorphism Palette - Dark Mode */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 180 70% 20%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 180 70% 20%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 199 89% 48%;
+    --chart-1: 190 80% 60%;
+    --chart-2: 170 70% 60%;
+    --chart-3: 210 70% 70%;
+    --chart-4: 280 60% 70%;
+    --chart-5: 340 60% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-background to-background dark:from-slate-900 dark:via-background dark:to-background bg-fixed;
+  }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 5px;
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-300 dark:bg-slate-700;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+/* Editor Styles */
+.tiptap :first-child {
+  margin-top: 0;
+}
+.tiptap h1,
+.tiptap h2,
+.tiptap h3 {
+  margin-top: 2rem;
+}
+.tiptap ul,
+.tiptap ol {
+  padding-left: 1.2em;
+}
+
+/* Print Styles */
+@media print {
+  /* General Print Settings */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  body {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* A4 Page Setup */
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  /* Thermal Receipt Page Setup (for thermal format) */
+  @page :has(.w-\[80mm\]) {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  /* Hide non-printable elements */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Remove shadows, borders, and rounded corners that don't print well */
+  .print\:border-none {
+    border: none !important;
+  }
+
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+
+  /* Ensure backgrounds and colors print */
+  .bg-blue-600,
+  .bg-blue-50,
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-amber-50,
+  [class*='bg-'] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Prevent page breaks inside important sections */
+  table,
+  .rounded-lg,
+  .border {
+    page-break-inside: avoid;
+  }
+
+  tr,
+  th,
+  td {
+    page-break-inside: avoid;
+  }
+
+  /* Ensure table borders print */
+  table {
+    border-collapse: collapse;
+  }
+
+  table th,
+  table td {
+    border: 1px solid #ddd;
+  }
+
+  /* Force black text for better contrast */
+  .text-gray-900,
+  .text-black {
+    color: #000 !important;
+  }
+
+  /* Prevent orphans and widows */
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Keep headings with their content */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
+  }
+
+  /* Thermal Receipt Specific */
+  .font-mono {
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+}
