@@ -92,7 +92,7 @@ export function CustomerTable<TData, TValue>({ columns, data, isLoading, paginat
           onChange={(event) => setSearchValue(event.target.value)}
           className="max-w-sm"
         />
-        <div className="w-[200px]">
+        <div className="min-w-[130px]">
           <Select
             value={filters.routeId || 'all'}
             onValueChange={(val) => setFilters({ routeId: val === 'all' ? null : val, page: 1 })}
@@ -108,6 +108,31 @@ export function CustomerTable<TData, TValue>({ columns, data, isLoading, paginat
                   {route.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[130px]">
+          <Select
+            value={filters.type || 'all'}
+            onValueChange={(val) => setFilters({ type: val === 'all' ? null : val, page: 1 })}
+            disabled={isLoadingRoutes}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {/* {routes.map((route: any) => ( */}
+              <SelectItem key={"RESIDENTIAL"} value={"RESIDENTIAL"}>
+                RESIDENTIAL
+              </SelectItem>
+              <SelectItem key={"COMMERCIAL"} value={"COMMERCIAL"}>
+                COMMERCIAL
+              </SelectItem>
+              <SelectItem key={"CORPORATE"} value={"CORPORATE"}>
+                CORPORATE
+              </SelectItem>
+              {/* ))} */}
             </SelectContent>
           </Select>
         </div>

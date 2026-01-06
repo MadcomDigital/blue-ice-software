@@ -19,6 +19,13 @@ async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
 
+function getRandomDeliveryDays(): number[] {
+  const DAYS = [1, 2, 3, 4, 5, 6]; // Mon–Sat
+  const count = faker.number.int({ min: 1, max: 4 }); // 1–4 days/week
+  return faker.helpers.arrayElements(DAYS, count);
+}
+
+
 async function main() {
   console.log('🌱 Starting seed...');
 
@@ -32,7 +39,7 @@ async function main() {
   await prisma.user.deleteMany();
 
   // ================= USERS =================
-  const password = await hashPassword('password123');
+  const password = await hashPassword('12345678');
 
   await prisma.user.create({
     data: {
@@ -40,7 +47,7 @@ async function main() {
       email: 'admin@blueice.com',
       phoneNumber: '03000000000',
       password,
-      role: UserRole.SUPER_ADMIN,
+      role: UserRole.ADMIN,
     },
   });
 
@@ -74,7 +81,7 @@ async function main() {
       data: {
         name: '19L Water',
         sku: 'W-19L',
-        basePrice: 200,
+        basePrice: 80,
         isReturnable: true,
         stockFilled: 500,
         stockEmpty: 100,
@@ -110,27 +117,37 @@ async function main() {
     );
   }
 
+  const defaultProduct = products[0]; // 19L Water
+
   // ================= CUSTOMERS (100 ONLY) =================
   const customers = [];
 
   for (let i = 0; i < CONFIG.CUSTOMERS_COUNT; i++) {
     const route = faker.helpers.arrayElement(routes);
+    const phone = faker.string.numeric(11);
+    const deliveryDays = getRandomDeliveryDays();
+    const defaultQty = faker.number.int({ min: 1, max: 3 });
+
 
     const user = await prisma.user.create({
       data: {
         name: faker.person.fullName(),
-        phoneNumber: `03${faker.string.numeric(9)}`,
+        phoneNumber: `03${phone.substring(2)}`,
+        email: faker.internet.email(),
         password,
         role: UserRole.CUSTOMER,
         customerProfile: {
           create: {
-            manualCode: `CUST-${i + 1}`,
+            manualCode: `L-${(i + 1).toString().padStart(4, '0')}`,
             type: faker.helpers.arrayElement(Object.values(CustomerType)),
             address: faker.location.streetAddress(),
             area: route.name,
             routeId: route.id,
             creditLimit: 5000,
             cashBalance: 0,
+            deliveryDays,
+            defaultProductId: defaultProduct.id,
+            defaultQuantity: defaultQty,
           },
         },
       },

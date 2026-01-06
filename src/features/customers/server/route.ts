@@ -14,6 +14,7 @@ import {
 import { createCustomerSchema, getCustomersQuerySchema, updateCustomerSchema } from '@/features/customers/schema';
 import { generateToken } from '@/lib/authenticate';
 import { sessionMiddleware } from '@/lib/session-middleware';
+import { Console } from 'console';
 
 const app = new Hono()
   /**
@@ -126,7 +127,6 @@ const app = new Hono()
    */
   .get('/', sessionMiddleware, zValidator('query', getCustomersQuerySchema), async (ctx) => {
     const params = ctx.req.valid('query');
-
     try {
       const result = await getCustomers(params);
 
