@@ -274,6 +274,11 @@ export async function generateOrders(data: { date: string; routeId?: string }) {
       routeId: true,
       cashBalance: true,
       creditLimit: true,
+      route: {
+        select: {
+          defaultDriverId: true,
+        },
+      },
     },
   });
 
@@ -381,12 +386,16 @@ export async function generateOrders(data: { date: string; routeId?: string }) {
           const quantity = customer.defaultQuantity;
           const totalAmount = price.mul(quantity);
 
+          // Auto-assign driver from route's defaultDriverId if available
+          const driverIdFromRoute = customer.route?.defaultDriverId ?? null;
+
           await tx.order.create({
             data: {
               customerId: customer.id,
               scheduledDate: scheduledDate,
               status: OrderStatus.SCHEDULED,
               totalAmount: totalAmount,
+              driverId: driverIdFromRoute,
               orderItems: {
                 create: {
                   productId: product.id,
@@ -454,6 +463,11 @@ export async function* generateOrdersStream(data: { date: string; routeId?: stri
       routeId: true,
       cashBalance: true,
       creditLimit: true,
+      route: {
+        select: {
+          defaultDriverId: true,
+        },
+      },
     },
   });
 
@@ -554,12 +568,16 @@ export async function* generateOrdersStream(data: { date: string; routeId?: stri
             const quantity = customer.defaultQuantity;
             const totalAmount = price.mul(quantity);
 
+            // Auto-assign driver from route's defaultDriverId if available
+            const driverIdFromRoute = customer.route?.defaultDriverId ?? null;
+
             await tx.order.create({
               data: {
                 customerId: customer.id,
                 scheduledDate: scheduledDate,
                 status: OrderStatus.SCHEDULED,
                 totalAmount: totalAmount,
+                driverId: driverIdFromRoute,
                 orderItems: {
                   create: {
                     productId: product.id,

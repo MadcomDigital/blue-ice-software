@@ -1,9 +1,10 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown, MoreHorizontal, Pencil, Trash } from 'lucide-react';
+import { ArrowUpDown, MoreHorizontal, Pencil, Trash, UserCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useConfirm } from '@/hooks/use-confirm';
@@ -14,6 +15,15 @@ export type Route = {
   id: string;
   name: string;
   description: string | null;
+  defaultDriverId: string | null;
+  defaultDriver?: {
+    id: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  } | null;
   _count: {
     customers: number;
   };
@@ -77,6 +87,22 @@ export const columns: ColumnDef<Route>[] = [
     accessorKey: 'description',
     header: 'Description',
     cell: ({ row }) => <div className="max-w-[300px] truncate">{row.getValue('description') || '-'}</div>,
+  },
+  {
+    id: 'defaultDriver',
+    header: 'Default Driver',
+    cell: ({ row }) => {
+      const driver = row.original.defaultDriver;
+      if (!driver) {
+        return <span className="text-muted-foreground">-</span>;
+      }
+      return (
+        <Badge variant="secondary" className="gap-1">
+          <UserCircle className="h-3 w-3" />
+          {driver.user.name}
+        </Badge>
+      );
+    },
   },
   {
     accessorKey: '_count.customers',

@@ -2,8 +2,8 @@ import { zValidator } from '@hono/zod-validator';
 import { Prisma, UserRole } from '@prisma/client';
 import { Hono } from 'hono';
 
-import { createRoute, deleteRoute, getRoute, getRoutes, updateRoute } from '@/features/routes/queries';
-import { createRouteSchema, getRoutesQuerySchema, updateRouteSchema } from '@/features/routes/schema';
+import { createRoute, deleteRoute, getRouteWithDriver, getRoutes, optimizeRouteSequence, updateRoute } from '@/features/routes/queries';
+import { createRouteSchema, getRoutesQuerySchema, optimizeRouteSchema, updateRouteSchema } from '@/features/routes/schema';
 import { sessionMiddleware } from '@/lib/session-middleware';
 
 const app = new Hono()
@@ -21,7 +21,7 @@ const app = new Hono()
     const { id } = ctx.req.param();
 
     try {
-      const route = await getRoute(id);
+      const route = await getRouteWithDriver(id);
       if (!route) return ctx.json({ error: 'Route not found' }, 404);
       return ctx.json({ data: route });
     } catch (error) {
@@ -77,6 +77,26 @@ const app = new Hono()
         return ctx.json({ error: 'Cannot delete route with assigned customers' }, 400);
       }
       return ctx.json({ error: 'Failed to delete route' }, 500);
+    }
+  })
+  .post('/:id/optimize', sessionMiddleware, zValidator('json', optimizeRouteSchema), async (ctx) => {
+    const user = ctx.get('user');
+    const { id } = ctx.req.param();
+
+    if (!([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.INVENTORY_MGR] as UserRole[]).includes(user.role)) {
+      return ctx.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const { startLat, startLng } = ctx.req.valid('json');
+
+    try {
+      const result = await optimizeRouteSequence(id, startLat, startLng);
+      if (!result.success) {
+        return ctx.json({ error: result.message }, 400);
+      }
+      return ctx.json({ data: result });
+    } catch (error) {
+      return ctx.json({ error: 'Failed to optimize route' }, 500);
     }
   });
 
