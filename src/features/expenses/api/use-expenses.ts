@@ -2,23 +2,15 @@
 
 import { ExpenseCategory, ExpenseStatus } from '@prisma/client';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
 
 import { client } from '@/lib/hono';
 
 export const useGetExpenses = () => {
-  const searchParams = useSearchParams();
-  const page = searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : 1;
-  const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : 10;
-
   return useQuery({
-    queryKey: ['expenses', { page, limit }],
+    queryKey: ['expenses'],
     queryFn: async () => {
       const response = await client.api.expenses.$get({
-        query: {
-          page: page.toString(),
-          limit: limit.toString(),
-        },
+        query: {},
       });
 
       if (!response.ok) {
