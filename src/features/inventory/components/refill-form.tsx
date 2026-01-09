@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowRightLeft, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
@@ -11,30 +11,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useGetProducts } from '@/features/products/api/use-get-products';
 
-import { useRecordDamage } from '../api/use-record-damage';
-import { type DamageInput, damageSchema } from '../schema';
+import { useRefill } from '../api/use-refill';
+import { type RefillInput, refillSchema } from '../schema';
+import { useGetInventoryStats } from '../api/use-get-inventory-stats';
 
-interface DamageFormProps {
+interface RefillFormProps {
   onCancel?: () => void;
 }
 
-export const DamageForm = ({ onCancel }: DamageFormProps) => {
+export const RefillForm = ({ onCancel }: RefillFormProps) => {
   const { data: products, isLoading: isLoadingProducts } = useGetProducts();
-  const { mutate: recordDamage, isPending } = useRecordDamage();
+  const { data: inventoryStats } = useGetInventoryStats();
+  const { mutate: refill, isPending } = useRefill();
 
-  const form = useForm<DamageInput>({
-    resolver: zodResolver(damageSchema),
+  const form = useForm<RefillInput>({
+    resolver: zodResolver(refillSchema),
     defaultValues: {
       productId: '',
       quantity: 0,
-      type: 'DAMAGE',
-      reason: '',
       notes: '',
     },
   });
 
-  const onSubmit = (data: DamageInput) => {
-    recordDamage(data, {
+  const selectedProductId = form.watch('productId');
+  const selectedProduct = inventoryStats?.products.find((p) => p.id === selectedProductId);
+
+  const onSubmit = (data: RefillInput) => {
+    refill(data, {
       onSuccess: () => {
         form.reset();
         onCancel?.();
@@ -70,56 +73,33 @@ export const DamageForm = ({ onCancel }: DamageFormProps) => {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Type</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="DAMAGE">Damage</SelectItem>
-                    <SelectItem value="LOSS">Loss</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>Damage: tracked separately. Loss: removed completely</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="quantity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quantity</FormLabel>
-                <FormControl>
-                  <Input type="number" min="1" placeholder="e.g. 5" {...field} />
-                </FormControl>
-                <FormDescription>Number of bottles affected</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        {selectedProduct && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Available Empty Bottles:</span>
+              <span className="font-semibold text-blue-600 dark:text-blue-400">{selectedProduct.stockEmpty}</span>
+            </div>
+          </div>
+        )}
 
         <FormField
           control={form.control}
-          name="reason"
+          name="quantity"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Reason</FormLabel>
+              <FormLabel>Quantity to Refill</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. Cracked during transport, Stolen, etc." {...field} />
+                <Input
+                  type="number"
+                  min="1"
+                  max={selectedProduct?.stockEmpty || undefined}
+                  placeholder="e.g. 25"
+                  {...field}
+                />
               </FormControl>
-              <FormDescription>Required: Explain what happened</FormDescription>
+              <FormDescription>
+                Convert empty bottles to filled (max: {selectedProduct?.stockEmpty || 0})
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -130,10 +110,11 @@ export const DamageForm = ({ onCancel }: DamageFormProps) => {
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Additional Notes (Optional)</FormLabel>
+              <FormLabel>Notes (Optional)</FormLabel>
               <FormControl>
-                <Textarea placeholder="Any additional details..." rows={3} {...field} />
+                <Textarea placeholder="e.g. Refill batch details, operator name, etc." rows={3} {...field} />
               </FormControl>
+              <FormDescription>Any additional information about this refill operation</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -145,10 +126,10 @@ export const DamageForm = ({ onCancel }: DamageFormProps) => {
               Cancel
             </Button>
           )}
-          <Button type="submit" variant="destructive" disabled={isPending}>
+          <Button type="submit" disabled={isPending || !selectedProduct || selectedProduct.stockEmpty === 0}>
             {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-            <AlertTriangle className="mr-2 h-4 w-4" />
-            Record {form.watch('type') === 'DAMAGE' ? 'Damage' : 'Loss'}
+            <ArrowRightLeft className="mr-2 h-4 w-4" />
+            Refill Bottles
           </Button>
         </div>
       </form>

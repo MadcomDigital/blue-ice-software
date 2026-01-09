@@ -1,9 +1,8 @@
-import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import type { PropsWithChildren } from 'react';
 import { useMedia } from 'react-use';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 
 interface ResponsiveModalProps {
   title: string;
@@ -18,12 +17,11 @@ export const ResponsiveModal = ({ children, title, description, open, onOpenChan
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="hide-scrollbar max-h-[85vh] w-full overflow-y-auto border-none p-0 sm:max-w-lg">
-          <VisuallyHidden.Root>
+        <DialogContent className="hide-scrollbar max-h-[85vh] w-full overflow-y-auto border-none p-5 sm:max-w-lg">
+          <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
-
             <DialogDescription>{description}</DialogDescription>
-          </VisuallyHidden.Root>
+          </DialogHeader>
           {children}
         </DialogContent>
       </Dialog>
@@ -33,12 +31,11 @@ export const ResponsiveModal = ({ children, title, description, open, onOpenChan
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
-        <VisuallyHidden.Root>
+        <DrawerHeader>
           <DrawerTitle>{title}</DrawerTitle>
-
           <DrawerDescription>{description}</DrawerDescription>
-        </VisuallyHidden.Root>
-        <div className="hide-scrollbar max-h-[85vh] overflow-y-auto">{children}</div>
+        </DrawerHeader>
+        <div className="hide-scrollbar max-h-[85vh] overflow-y-auto p-4">{children}</div>
       </DrawerContent>
     </Drawer>
   );

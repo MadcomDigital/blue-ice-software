@@ -98,15 +98,15 @@ function DeliveriesContent() {
 
         <TabsContent value="pending" className="mt-4 space-y-4">
           {viewMode === 'map' ? (
-             <DeliveryMap orders={pendingOrders} height="500px" />
+            <DeliveryMap orders={pendingOrders} height="500px" />
           ) : (
-             <>
-               {pendingOrders.length === 0 ? (
-                 <p className="py-8 text-center text-muted-foreground">No pending deliveries</p>
-               ) : (
-                 pendingOrders.map((order: any, index: number) => <EnhancedOrderCard key={order.id} order={order} index={index} />)
-               )}
-             </>
+            <>
+              {pendingOrders.length === 0 ? (
+                <p className="py-8 text-center text-muted-foreground">No pending deliveries</p>
+              ) : (
+                pendingOrders.map((order: any, index: number) => <EnhancedOrderCard key={order.id} order={order} index={index} />)
+              )}
+            </>
           )}
         </TabsContent>
 

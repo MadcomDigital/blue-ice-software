@@ -24,13 +24,13 @@ export async function getInventoryStats() {
   const bottlesWithCustomers = await db.customerBottleWallet.groupBy({
     by: ['productId'],
     _sum: {
-      bottleBalance: true,
+      balance: true,
     },
   });
 
   // Create a map for easy lookup
   const bottlesWithCustomersMap = new Map(
-    bottlesWithCustomers.map((item) => [item.productId, item._sum.bottleBalance || 0]),
+    bottlesWithCustomers.map((item) => [item.productId, item._sum.balance || 0]),
   );
 
   // Calculate totals
@@ -56,12 +56,13 @@ export async function getInventoryStats() {
 }
 
 /**
- * Add filled bottles to inventory (restocking)
+ * Add new bottles to inventory from supplier (restocking)
+ * Adds both filled and empty bottles to total stock
  */
-export async function restockProduct(data: { productId: string; quantity: number; notes?: string }) {
+export async function restockProduct(data: { productId: string; filledQuantity: number; emptyQuantity: number; notes?: string }) {
   const product = await db.product.findUnique({
     where: { id: data.productId },
-    select: { id: true, name: true, stockFilled: true },
+    select: { id: true, name: true, stockFilled: true, stockEmpty: true },
   });
 
   if (!product) {
@@ -71,7 +72,36 @@ export async function restockProduct(data: { productId: string; quantity: number
   return await db.product.update({
     where: { id: data.productId },
     data: {
+      stockFilled: product.stockFilled + data.filledQuantity,
+      stockEmpty: product.stockEmpty + data.emptyQuantity,
+    },
+  });
+}
+
+/**
+ * Refill empty bottles (convert empty to filled)
+ * Does not change total stock, only moves from empty to filled
+ */
+export async function refillBottles(data: { productId: string; quantity: number; notes?: string }) {
+  const product = await db.product.findUnique({
+    where: { id: data.productId },
+    select: { id: true, name: true, stockFilled: true, stockEmpty: true },
+  });
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  // Check if we have enough empty bottles to refill
+  if (product.stockEmpty < data.quantity) {
+    throw new Error(`Insufficient empty bottles. Available: ${product.stockEmpty}, Requested: ${data.quantity}`);
+  }
+
+  return await db.product.update({
+    where: { id: data.productId },
+    data: {
       stockFilled: product.stockFilled + data.quantity,
+      stockEmpty: product.stockEmpty - data.quantity,
     },
   });
 }
@@ -159,7 +189,7 @@ export async function getBottlesWithCustomers(productId?: string) {
   const wallets = await db.customerBottleWallet.findMany({
     where: {
       ...where,
-      bottleBalance: {
+      balance: {
         gt: 0,
       },
     },
@@ -185,7 +215,7 @@ export async function getBottlesWithCustomers(productId?: string) {
       },
     },
     orderBy: {
-      bottleBalance: 'desc',
+      balance: 'desc',
     },
   });
 
@@ -197,6 +227,6 @@ export async function getBottlesWithCustomers(productId?: string) {
     productId: wallet.product.id,
     productName: wallet.product.name,
     productSku: wallet.product.sku,
-    bottleBalance: wallet.bottleBalance,
+    bottleBalance: wallet.balance,
   }));
 }

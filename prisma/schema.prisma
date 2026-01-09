@@ -329,7 +329,7 @@ model OrderItem {
   emptyTaken      Int @default(0) // Driver ne kitni wapis li
   damagedReturned Int @default(0) // Broken bottles returned
 
-  order   Order   @relation(fields: [orderId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
 }
 

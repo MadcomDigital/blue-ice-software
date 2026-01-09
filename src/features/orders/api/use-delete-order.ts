@@ -11,7 +11,6 @@ export const useDeleteOrder = () => {
       const response = await client.api.orders[':id'].$delete({
         param,
       });
-
       if (!response.ok) {
         const error = (await response.json()) as { error?: string };
         throw new Error(error.error || 'Failed to delete order');

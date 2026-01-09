@@ -73,6 +73,11 @@ const app = new Hono()
       return ctx.json({ data: order });
     } catch (error) {
       console.error(error);
+
+      if (error instanceof Error) {
+        return ctx.json({ error: error.message }, 400);
+      }
+
       return ctx.json({ error: 'Failed to create order' }, 500);
     }
   })
@@ -203,6 +208,7 @@ const app = new Hono()
       await deleteOrder(id);
       return ctx.json({ success: true });
     } catch (error) {
+      console.log("error deleting order:", error);
       return ctx.json({ error: 'Failed to delete order' }, 500);
     }
   });

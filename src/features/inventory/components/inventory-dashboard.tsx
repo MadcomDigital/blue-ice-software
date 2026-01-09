@@ -1,7 +1,6 @@
 'use client';
 
-import { AlertTriangle, Box, Package, Plus, Users } from 'lucide-react';
-import Link from 'next/link';
+import { AlertTriangle, ArrowRightLeft, Box, Package, Plus, Users } from 'lucide-react';
 
 import { PageError } from '@/components/page-error';
 import { PageLoader } from '@/components/page-loader';
@@ -10,9 +9,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import { useGetInventoryStats } from '../api/use-get-inventory-stats';
+import { useDamageModal } from '../hooks/use-damage-modal';
+import { useRefillModal } from '../hooks/use-refill-modal';
+import { useRestockModal } from '../hooks/use-restock-modal';
+import { DamageFormModal } from './damage-form-modal';
+import { RefillFormModal } from './refill-form-modal';
+import { RestockFormModal } from './restock-form-modal';
 
 export const InventoryDashboard = () => {
   const { data, isLoading, error } = useGetInventoryStats();
+  const { open: openRestockModal } = useRestockModal();
+  const { open: openRefillModal } = useRefillModal();
+  const { open: openDamageModal } = useDamageModal();
 
   if (isLoading) return <PageLoader />;
   if (error) return <PageError message="Failed to load inventory data" />;
@@ -21,8 +29,12 @@ export const InventoryDashboard = () => {
   const { products, totals } = data;
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
+    <>
+      <RestockFormModal />
+      <RefillFormModal />
+      <DamageFormModal />
+      <div className="space-y-6">
+        {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -69,27 +81,27 @@ export const InventoryDashboard = () => {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common inventory operations</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Link href="/inventory/restock">
-            <Button>
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common inventory operations</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button onClick={openRestockModal}>
               <Plus className="mr-2 h-4 w-4" />
               Record Restock
             </Button>
-          </Link>
-          <Link href="/inventory/damage">
-            <Button variant="destructive">
+            <Button variant="secondary" onClick={openRefillModal}>
+              <ArrowRightLeft className="mr-2 h-4 w-4" />
+              Refill Bottles
+            </Button>
+            <Button variant="destructive" onClick={openDamageModal}>
               <AlertTriangle className="mr-2 h-4 w-4" />
               Report Damage/Loss
             </Button>
-          </Link>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       {/* Product-wise Inventory Table */}
       <Card>
@@ -142,7 +154,8 @@ export const InventoryDashboard = () => {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </>
   );
 };

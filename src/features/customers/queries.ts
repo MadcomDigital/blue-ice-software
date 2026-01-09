@@ -380,6 +380,7 @@ export async function getCustomers(params: {
           select: {
             id: true,
             name: true,
+            defaultDriverId: true,
           },
         },
       },

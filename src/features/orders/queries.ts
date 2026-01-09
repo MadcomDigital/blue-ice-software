@@ -622,6 +622,74 @@ export async function createOrder(data: {
   items: { productId: string; quantity: number; price?: number }[];
 }) {
   const { items, ...orderData } = data;
+  let finalDriverId = data.driverId;
+
+  if (!finalDriverId) {
+    // Agar driverId nahi di gayi, to customer ke route se check karein
+    const customerProfile = await db.customerProfile.findUnique({
+      where: { id: data.customerId },
+      select: {
+        route: {
+          select: {
+            defaultDriverId: true,
+          },
+        },
+      },
+    });
+
+    if (customerProfile?.route?.defaultDriverId) {
+      finalDriverId = customerProfile.route.defaultDriverId;
+    }
+  }
+  // Check if order already exists for this customer on this date
+  const existingOrder = await db.order.findFirst({
+    where: {
+      customerId: data.customerId,
+      scheduledDate: data.scheduledDate,
+      status: {
+        notIn: [OrderStatus.CANCELLED], // Allow if previous was cancelled
+      },
+    },
+    include: {
+      orderItems: {
+        select: {
+          productId: true,
+          quantity: true,
+        },
+      },
+    },
+  });
+
+  if (existingOrder) {
+    // Compare items to see if they're different
+    const existingItemsMap = new Map(
+      existingOrder.orderItems.map((item) => [item.productId, item.quantity])
+    );
+    const newItemsMap = new Map(items.map((item) => [item.productId, item.quantity]));
+
+    // Check if items are different (different products or quantities)
+    let itemsDifferent = false;
+    if (existingItemsMap.size !== newItemsMap.size) {
+      itemsDifferent = true;
+    } else {
+      for (const [productId, quantity] of Array.from(newItemsMap.entries())) {
+        if (existingItemsMap.get(productId) !== quantity) {
+          itemsDifferent = true;
+          break;
+        }
+      }
+    }
+
+    if (itemsDifferent) {
+      throw new Error(
+        `An order (#${existingOrder.readableId}) already exists for this customer on this date with different items. Please edit the existing order instead of creating a new one.`
+      );
+    } else {
+      throw new Error(
+        `An order (#${existingOrder.readableId}) already exists for this customer on this date with the same items.`
+      );
+    }
+  }
 
   // Calculate total
   // We need to fetch product prices if not provided

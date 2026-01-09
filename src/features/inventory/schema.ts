@@ -1,13 +1,26 @@
 import { z } from 'zod';
 
-// Restock form schema (add filled bottles to inventory)
+// Restock form schema (add new bottles from supplier)
 export const restockSchema = z.object({
+  productId: z.string().min(1, 'Product is required'),
+  filledQuantity: z.coerce.number().int().nonnegative('Filled quantity cannot be negative'),
+  emptyQuantity: z.coerce.number().int().nonnegative('Empty quantity cannot be negative'),
+  notes: z.string().optional(),
+}).refine((data) => data.filledQuantity > 0 || data.emptyQuantity > 0, {
+  message: 'At least one quantity (filled or empty) must be greater than 0',
+  path: ['filledQuantity'],
+});
+
+export type RestockInput = z.infer<typeof restockSchema>;
+
+// Refill form schema (convert empty bottles to filled)
+export const refillSchema = z.object({
   productId: z.string().min(1, 'Product is required'),
   quantity: z.coerce.number().int().positive('Quantity must be positive'),
   notes: z.string().optional(),
 });
 
-export type RestockInput = z.infer<typeof restockSchema>;
+export type RefillInput = z.infer<typeof refillSchema>;
 
 // Damage/Loss form schema (reduce stock due to damage or loss)
 export const damageSchema = z.object({

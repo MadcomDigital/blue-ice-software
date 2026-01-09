@@ -3,8 +3,8 @@ import { Hono } from 'hono';
 
 import { sessionMiddleware } from '@/lib/session-middleware';
 
-import { adjustStock, getBottlesWithCustomers, getInventoryStats, recordDamageOrLoss, restockProduct } from '../queries';
-import { adjustmentSchema, damageSchema, restockSchema } from '../schema';
+import { adjustStock, getBottlesWithCustomers, getInventoryStats, recordDamageOrLoss, refillBottles, restockProduct } from '../queries';
+import { adjustmentSchema, damageSchema, refillSchema, restockSchema } from '../schema';
 
 const app = new Hono()
   .get('/stats', sessionMiddleware, async (c) => {
@@ -19,6 +19,11 @@ const app = new Hono()
   .post('/restock', sessionMiddleware, zValidator('json', restockSchema), async (c) => {
     const data = c.req.valid('json');
     const product = await restockProduct(data);
+    return c.json({ success: true, product });
+  })
+  .post('/refill', sessionMiddleware, zValidator('json', refillSchema), async (c) => {
+    const data = c.req.valid('json');
+    const product = await refillBottles(data);
     return c.json({ success: true, product });
   })
   .post('/damage', sessionMiddleware, zValidator('json', damageSchema), async (c) => {

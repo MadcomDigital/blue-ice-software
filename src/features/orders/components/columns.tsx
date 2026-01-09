@@ -37,6 +37,10 @@ export type Order = {
   driver?: {
     user: { name: string };
   } | null;
+  orderItems?: {
+    product: { name: string };
+    quantity: number;
+  }[];
 };
 
 const ActionCell = ({ order }: { order: Order }) => {
@@ -111,7 +115,14 @@ export const columns: ColumnDef<Order>[] = [
   },
   {
     accessorKey: 'readableId',
-    header: 'Order #',
+    header: ({ column }) => {
+      return (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Order #
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
+    },
     cell: ({ row }) => <div className="font-mono font-medium">#{row.getValue('readableId')}</div>,
   },
   {
@@ -138,6 +149,38 @@ export const columns: ColumnDef<Order>[] = [
     accessorKey: 'driver.user.name',
     header: 'Driver',
     cell: ({ row }) => row.original.driver?.user.name || '-',
+  },
+  {
+    id: 'items',
+    header: 'Items',
+    cell: ({ row }) => {
+      const items = row.original.orderItems || [];
+      if (items.length === 0) return '-';
+
+      const itemsSummary = items.map((item) => `${item.product.name} (${item.quantity})`).join(', ');
+      const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger className="cursor-help text-left">
+              <div className="max-w-[200px] truncate">
+                {items.length > 1 ? `${totalQuantity} items` : itemsSummary}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="space-y-1">
+                {items.map((item, idx) => (
+                  <div key={idx}>
+                    {item.product.name} × {item.quantity}
+                  </div>
+                ))}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
   },
   {
     accessorKey: 'status',
