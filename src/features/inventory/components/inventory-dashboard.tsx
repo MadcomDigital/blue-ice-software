@@ -11,6 +11,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 import { useGetInventoryStats } from '../api/use-get-inventory-stats';
 
+interface ProductStats {
+  id: string;
+  name: string;
+  sku: string;
+  stockFilled: number;
+  stockEmpty: number;
+  stockDamaged: number;
+  bottlesWithCustomers: number;
+  totalBottles: number;
+}
+
 export const InventoryDashboard = () => {
   const { data, isLoading, error } = useGetInventoryStats();
 
@@ -111,7 +122,7 @@ export const InventoryDashboard = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
+              {products.map((product: ProductStats) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell className="text-muted-foreground">{product.sku}</TableCell>
