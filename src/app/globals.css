@@ -114,14 +114,25 @@ body {
 
 /* Custom Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  height: 5px;
-  width: 5px;
+  height: 8px;
+  width: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-slate-300 dark:bg-slate-700;
+  @apply rounded-full bg-blue-400/60 hover:bg-blue-500/80 dark:bg-blue-600/60 dark:hover:bg-blue-500/80;
+  transition: background-color 0.2s ease;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  @apply bg-slate-100/50 dark:bg-slate-800/50 rounded-full;
+}
+
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(200 90% 50% / 0.6) hsl(210 40% 96% / 0.5);
+}
+
+.dark .custom-scrollbar {
+  scrollbar-color: hsl(200 80% 50% / 0.6) hsl(217 33% 17% / 0.5);
 }
 
 /* Editor Styles */

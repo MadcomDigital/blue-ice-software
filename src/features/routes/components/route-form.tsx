@@ -91,46 +91,53 @@ export const RouteForm = ({ routeId, onCancel }: RouteFormProps) => {
   if (isEdit && !route) return <PageError message="Route not found" />;
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Route Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Morning - DHA Phase 6" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <Card className="">
+      <CardHeader>
+        <CardTitle>{isEdit ? 'Edit Route' : 'Create New Route'}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Route Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Morning - DHA Phase 6" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description (Optional)</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Details about the route..." className="resize-none" {...field} value={field.value || ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Details about the route..." className="resize-none" {...field} value={field.value || ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div className="flex justify-end space-x-2">
-          <Button type="button" variant="ghost" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-            {isEdit ? 'Save Changes' : 'Create Route'}
-          </Button>
-        </div>
-      </form>
-    </Form>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="ghost" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {isEdit ? 'Save Changes' : 'Create Route'}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 };

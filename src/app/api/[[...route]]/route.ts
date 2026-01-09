@@ -7,6 +7,7 @@ import customers from '@/features/customers/server/route';
 import dashboard from '@/features/dashboard/server/route';
 import drivers from '@/features/drivers/server/route';
 import expenses from '@/features/expenses/server/route';
+import inventory from '@/features/inventory/server/route';
 import notifications from '@/features/notifications/server/route';
 import orders from '@/features/orders/server/route';
 import products from '@/features/products/server/route';
@@ -36,6 +37,7 @@ const routes = app
   .route('/tracking', tracking)
   .route('/cash-management', cashManagement)
   .route('/expenses', expenses)
+  .route('/inventory', inventory)
   .route('/notifications', notifications);
 
 export type AppType = typeof routes;

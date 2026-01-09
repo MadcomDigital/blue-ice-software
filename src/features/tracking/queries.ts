@@ -3,7 +3,9 @@ import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 
 /**
- * Update driver's current location
+ * Update driver's current location (optimized - no history writes)
+ * Only updates the current position in driver profile
+ * Real-time data is handled by Redis cache and Socket.IO
  */
 export async function updateDriverLocation(data: {
   driverId: string;
@@ -15,34 +17,44 @@ export async function updateDriverLocation(data: {
   isMoving?: boolean;
   batteryLevel?: number;
 }) {
-  const { driverId, latitude, longitude, ...locationData } = data;
+  const { driverId, latitude, longitude } = data;
 
-  // Update driver's current location
-  await db.driverProfile.update({
+  // Check if location actually changed to avoid unnecessary DB writes
+  const driver = await db.driverProfile.findUnique({
     where: { id: driverId },
-    data: {
-      currentLat: latitude,
-      currentLng: longitude,
-      lastLocationUpdate: new Date(),
-    },
+    select: { currentLat: true, currentLng: true, lastLocationUpdate: true },
   });
 
-  // Store in location history
-  const locationHistory = await db.driverLocationHistory.create({
-    data: {
-      driverId,
-      latitude,
-      longitude,
-      ...locationData,
-      timestamp: new Date(),
-    },
-  });
+  // Only update if location changed significantly (>= 10 meters) or if it's been >30 seconds
+  const now = new Date();
+  const shouldUpdate =
+    !driver ||
+    !driver.currentLat ||
+    !driver.currentLng ||
+    calculateDistance(driver.currentLat, driver.currentLng, latitude, longitude) >= 0.01 || // 10 meters
+    (driver.lastLocationUpdate && now.getTime() - driver.lastLocationUpdate.getTime() > 30000); // 30 seconds
 
-  return locationHistory;
+  if (shouldUpdate) {
+    await db.driverProfile.update({
+      where: { id: driverId },
+      data: {
+        currentLat: latitude,
+        currentLng: longitude,
+        lastLocationUpdate: now,
+      },
+    });
+  }
+
+  return {
+    success: true,
+    updated: shouldUpdate,
+    message: shouldUpdate ? 'Location updated' : 'Location unchanged, skipped DB write',
+  };
 }
 
 /**
  * Get all active drivers with their current locations
+ * Optimized: Uses Redis cache for movement/battery data instead of DB
  */
 export async function getLiveDriverLocations() {
   const drivers = await db.driverProfile.findMany({
@@ -66,18 +78,6 @@ export async function getLiveDriverLocations() {
         },
       },
       vehicleNo: true,
-      // Get most recent location history for movement/battery data
-      locationHistory: {
-        take: 1,
-        orderBy: {
-          timestamp: 'desc',
-        },
-        select: {
-          isMoving: true,
-          batteryLevel: true,
-          speed: true,
-        },
-      },
       // Get current active order if any
       orders: {
         where: {
@@ -111,8 +111,13 @@ export async function getLiveDriverLocations() {
     },
   });
 
+  // Get additional data from Redis cache (movement, battery, speed)
+  const { getAllDriverLocations } = await import('@/lib/redis');
+  const cachedLocations = await getAllDriverLocations();
+  const cachedMap = new Map(cachedLocations.map((loc) => [loc.driverId, loc]));
+
   return drivers.map((driver) => {
-    const latestLocation = driver.locationHistory[0];
+    const cached = cachedMap.get(driver.id);
     return {
       driverId: driver.id,
       name: driver.user.name,
@@ -123,9 +128,10 @@ export async function getLiveDriverLocations() {
       longitude: driver.currentLng!,
       lastUpdate: driver.lastLocationUpdate,
       isOnDuty: driver.isOnDuty,
-      isMoving: latestLocation?.isMoving ?? false,
-      batteryLevel: latestLocation?.batteryLevel ?? null,
-      speed: latestLocation?.speed ?? null,
+      // Get from Redis cache or default values
+      isMoving: cached?.isMoving ?? false,
+      batteryLevel: cached?.batteryLevel ?? null,
+      speed: cached?.speed ?? null,
       currentOrder: driver.orders[0] || null,
     };
   });
@@ -133,73 +139,23 @@ export async function getLiveDriverLocations() {
 
 /**
  * Get driver's route history for a specific date
+ * NOTE: Disabled - no location history is being saved to optimize database performance
+ * If you need historical route data in the future, consider:
+ * 1. Saving waypoints only when orders are completed
+ * 2. Using a time-series database like TimescaleDB
+ * 3. Storing compressed daily summaries instead of raw GPS points
  */
 export async function getDriverRouteHistory(driverId: string, date: Date) {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const locations = await db.driverLocationHistory.findMany({
-    where: {
-      driverId,
-      timestamp: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-    },
-    orderBy: {
-      timestamp: 'asc',
-    },
-    select: {
-      latitude: true,
-      longitude: true,
-      timestamp: true,
-      speed: true,
-      isMoving: true,
-    },
-  });
-
-  // Calculate stats
-  let totalDistance = 0;
-  let totalSpeed = 0;
-  let speedCount = 0;
-  let stoppedDuration = 0;
-
-  for (let i = 1; i < locations.length; i++) {
-    const prev = locations[i - 1];
-    const curr = locations[i];
-
-    // Calculate distance using Haversine formula
-    const distance = calculateDistance(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
-    totalDistance += distance;
-
-    if (curr.speed) {
-      totalSpeed += curr.speed;
-      speedCount++;
-    }
-
-    // Calculate stopped duration
-    if (!curr.isMoving) {
-      const timeDiff = (curr.timestamp.getTime() - prev.timestamp.getTime()) / 1000 / 60;
-      stoppedDuration += timeDiff;
-    }
-  }
-
+  // Return empty data since we're not storing location history
   return {
-    locations: locations.map((loc) => ({
-      lat: loc.latitude,
-      lng: loc.longitude,
-      timestamp: loc.timestamp,
-      speed: loc.speed,
-    })),
+    locations: [],
     stats: {
-      totalDistance: Math.round(totalDistance * 100) / 100, // Round to 2 decimals
-      averageSpeed: speedCount > 0 ? Math.round((totalSpeed / speedCount) * 100) / 100 : 0,
-      stoppedDuration: Math.round(stoppedDuration), // In minutes
-      dataPoints: locations.length,
+      totalDistance: 0,
+      averageSpeed: 0,
+      stoppedDuration: 0,
+      dataPoints: 0,
     },
+    message: 'Route history feature disabled - no location history is being saved',
   };
 }
 
@@ -244,18 +200,9 @@ function toRad(degrees: number): number {
 
 /**
  * Clean up old location history (keep last 30 days)
+ * NOTE: Disabled - no location history is being saved anymore
  */
 export async function cleanupLocationHistory() {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const deleted = await db.driverLocationHistory.deleteMany({
-    where: {
-      timestamp: {
-        lt: thirtyDaysAgo,
-      },
-    },
-  });
-
-  return deleted.count;
+  // No cleanup needed since we're not storing location history
+  return 0;
 }

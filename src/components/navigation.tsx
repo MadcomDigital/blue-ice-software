@@ -1,7 +1,7 @@
 'use client';
 
 import { UserRole } from '@prisma/client';
-import { DollarSign, LayoutDashboard, Map, MapPin, Package, Receipt, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
+import { Box, DollarSign, LayoutDashboard, Map, MapPin, Package, Receipt, Settings, ShoppingCart, Truck, Users } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -35,6 +35,13 @@ const routes = [
     href: 'products',
     icon: Package,
     activeIcon: Package,
+    roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.INVENTORY_MGR],
+  },
+  {
+    label: 'Inventory',
+    href: 'inventory',
+    icon: Box,
+    activeIcon: Box,
     roles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.INVENTORY_MGR],
   },
   {
