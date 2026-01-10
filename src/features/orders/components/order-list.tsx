@@ -127,137 +127,144 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
           </Button>
         </div>
       )}
-      <div className="flex flex-col lg:flex-row lg:flex-wrap items-stretch lg:items-center gap-2 py-4">
-        <Input
-          placeholder="Search orders..."
-          value={searchValue}
-          onChange={(event) => setSearchValue(event.target.value)}
-          className="w-full lg:max-w-[200px]"
-        />
-        <div className="w-full lg:w-[180px]">
-          <Select
-            value={filters.routeId || 'all'}
-            onValueChange={(val) => setFilters({ routeId: val === 'all' ? null : val, page: 1 })}
-            disabled={isLoadingRoutes}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Route" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Routes</SelectItem>
-              {routes.map((route: any) => (
-                <SelectItem key={route.id} value={route.id}>
-                  {route.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-full lg:w-[180px]">
-          <Select
-            value={filters.status || 'all'}
-            onValueChange={(val) =>
-              setFilters({
-                status: val === 'all' ? null : val === 'UNASSIGNED' ? null : val,
-                driverId: val === 'UNASSIGNED' ? 'unassigned' : filters.driverId, // Keep existing driver if not unassigned
-                page: 1,
-              })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
-              <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-full lg:w-[180px]">
-          <Select
-            value={filters.driverId || 'all'}
-            onValueChange={(val) => setFilters({ driverId: val === 'all' ? null : val, page: 1 })}
-            disabled={isLoadingDrivers}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by Driver" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Drivers</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {drivers.map((driver: any) => (
-                <SelectItem key={driver.id} value={driver.id}>
-                  {driver.user.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-2 w-full lg:w-auto">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                id="date"
-                variant={'outline'}
-                className={cn('w-full lg:w-[260px] justify-start text-left font-normal', !localDateRange && 'text-muted-foreground')}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {localDateRange?.from ? (
-                  localDateRange.to ? (
-                    <>
-                      {format(localDateRange.from, 'LLL dd, y')} - {format(localDateRange.to, 'LLL dd, y')}
-                    </>
+      <div className="flex flex-col gap-2 py-4 lg:flex-row lg:flex-wrap lg:items-center">
+        {/* Filters - Horizontal scrolling on mobile */}
+        <div className="flex flex-row overflow-x-auto gap-2 w-full lg:w-auto lg:overflow-visible pb-2 lg:pb-0 items-center">
+          <Input
+            placeholder="Search orders..."
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            className="min-w-[200px] lg:max-w-[200px]"
+          />
+          <div className="min-w-[180px] lg:w-[180px]">
+            <Select
+              value={filters.routeId || 'all'}
+              onValueChange={(val) => setFilters({ routeId: val === 'all' ? null : val, page: 1 })}
+              disabled={isLoadingRoutes}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Route" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Routes</SelectItem>
+                {routes.map((route: any) => (
+                  <SelectItem key={route.id} value={route.id}>
+                    {route.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-[180px] lg:w-[180px]">
+            <Select
+              value={filters.status || 'all'}
+              onValueChange={(val) =>
+                setFilters({
+                  status: val === 'all' ? null : val === 'UNASSIGNED' ? null : val,
+                  driverId: val === 'UNASSIGNED' ? 'unassigned' : filters.driverId, // Keep existing driver if not unassigned
+                  page: 1,
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="COMPLETED">Completed</SelectItem>
+                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-[180px] lg:w-[180px]">
+            <Select
+              value={filters.driverId || 'all'}
+              onValueChange={(val) => setFilters({ driverId: val === 'all' ? null : val, page: 1 })}
+              disabled={isLoadingDrivers}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Driver" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Drivers</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                {drivers.map((driver: any) => (
+                  <SelectItem key={driver.id} value={driver.id}>
+                    {driver.user.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-[260px] lg:w-auto">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={'outline'}
+                  className={cn('w-full justify-start text-left font-normal', !localDateRange && 'text-muted-foreground')}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {localDateRange?.from ? (
+                    localDateRange.to ? (
+                      <>
+                        {format(localDateRange.from, 'LLL dd, y')} - {format(localDateRange.to, 'LLL dd, y')}
+                      </>
+                    ) : (
+                      format(localDateRange.from, 'LLL dd, y')
+                    )
                   ) : (
-                    format(localDateRange.from, 'LLL dd, y')
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={localDateRange?.from}
-                selected={localDateRange}
-                onSelect={setDateRange}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
+                    <span>Pick a date range</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={localDateRange?.from}
+                  selected={localDateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
-        <Button variant="outline" className="w-full lg:w-auto" onClick={() => setIsGenerateOpen(true)}>
-          Generate Orders
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto w-full lg:w-auto">
-              Columns <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+
+        {/* Action Buttons - Flex row justify between on mobile */}
+        <div className="flex flex-row justify-between items-center w-full lg:w-auto lg:ml-auto gap-2">
+          <Button variant="outline" className="flex-1 lg:flex-none lg:w-auto" onClick={() => setIsGenerateOpen(true)}>
+            Generate Orders
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex-1 lg:flex-none lg:ml-auto lg:w-auto">
+                Columns <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
+                      {column.id}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <div className="rounded-md border overflow-x-auto">
         <Table>
