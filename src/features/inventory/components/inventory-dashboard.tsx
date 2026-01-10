@@ -40,13 +40,9 @@ export const InventoryDashboard = () => {
   const { products, totals } = data;
 
   return (
-    <>
-      <RestockFormModal />
-      <RefillFormModal />
-      <DamageFormModal />
-      <div className="space-y-6">
-        {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Filled Bottles</CardTitle>
@@ -92,27 +88,27 @@ export const InventoryDashboard = () => {
         </Card>
       </div>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common inventory operations</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Button onClick={openRestockModal}>
-              <Plus className="mr-2 h-4 w-4" />
-              Record Restock
-            </Button>
-            <Button variant="secondary" onClick={openRefillModal}>
-              <ArrowRightLeft className="mr-2 h-4 w-4" />
-              Refill Bottles
-            </Button>
-            <Button variant="destructive" onClick={openDamageModal}>
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              Report Damage/Loss
-            </Button>
-          </CardContent>
-        </Card>
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common inventory operations</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button onClick={openRestockModal}>
+            <Plus className="mr-2 h-4 w-4" />
+            Record Restock
+          </Button>
+          <Button variant="secondary" onClick={openRefillModal}>
+            <ArrowRightLeft className="mr-2 h-4 w-4" />
+            Refill Bottles
+          </Button>
+          <Button variant="destructive" onClick={openDamageModal}>
+            <AlertTriangle className="mr-2 h-4 w-4" />
+            Report Damage/Loss
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Product-wise Inventory Table */}
       <Card>
@@ -165,8 +161,8 @@ export const InventoryDashboard = () => {
             </TableBody>
           </Table>
         </CardContent>
-        </Card>
-      </div>
+      </Card>
+    </div>
     </>
   );
 };
