@@ -163,6 +163,5 @@ export const InventoryDashboard = () => {
         </CardContent>
       </Card>
     </div>
-    </>
   );
 };
