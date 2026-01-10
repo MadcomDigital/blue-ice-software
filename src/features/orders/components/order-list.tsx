@@ -127,14 +127,14 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
           </Button>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2 py-4">
+      <div className="flex flex-col lg:flex-row lg:flex-wrap items-stretch lg:items-center gap-2 py-4">
         <Input
           placeholder="Search orders..."
           value={searchValue}
           onChange={(event) => setSearchValue(event.target.value)}
-          className="max-w-[200px]"
+          className="w-full lg:max-w-[200px]"
         />
-        <div className="w-[180px]">
+        <div className="w-full lg:w-[180px]">
           <Select
             value={filters.routeId || 'all'}
             onValueChange={(val) => setFilters({ routeId: val === 'all' ? null : val, page: 1 })}
@@ -153,7 +153,7 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
             </SelectContent>
           </Select>
         </div>
-        <div className="w-[180px]">
+        <div className="w-full lg:w-[180px]">
           <Select
             value={filters.status || 'all'}
             onValueChange={(val) =>
@@ -177,7 +177,7 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
             </SelectContent>
           </Select>
         </div>
-        <div className="w-[180px]">
+        <div className="w-full lg:w-[180px]">
           <Select
             value={filters.driverId || 'all'}
             onValueChange={(val) => setFilters({ driverId: val === 'all' ? null : val, page: 1 })}
@@ -197,13 +197,13 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-2">
+        <div className="grid gap-2 w-full lg:w-auto">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 id="date"
                 variant={'outline'}
-                className={cn('w-[260px] justify-start text-left font-normal', !localDateRange && 'text-muted-foreground')}
+                className={cn('w-full lg:w-[260px] justify-start text-left font-normal', !localDateRange && 'text-muted-foreground')}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {localDateRange?.from ? (
@@ -231,12 +231,12 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
             </PopoverContent>
           </Popover>
         </div>
-        <Button variant="outline" onClick={() => setIsGenerateOpen(true)}>
+        <Button variant="outline" className="w-full lg:w-auto" onClick={() => setIsGenerateOpen(true)}>
           Generate Orders
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
+            <Button variant="outline" className="ml-auto w-full lg:w-auto">
               Columns <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -314,8 +314,8 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
           </TableBody>
         </Table>
       </div>
-      <div className="glass-card sticky bottom-4 z-20 border-white/40 flex items-center justify-end space-x-2 px-2 py-1 mt-2  ">
-        <div className="flex-1 text-sm text-muted-foreground">
+      <div className="glass-card sticky bottom-4 z-20 border-white/40 flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-2 mt-2">
+        <div className="flex-1 text-sm text-muted-foreground w-full text-center sm:text-left">
           {selectedIds.length > 0 && (
             <span>
               {selectedIds.length} of {data.length} row(s) selected.
@@ -345,7 +345,7 @@ export function OrderTable<TData extends { id: string }, TValue>({ columns, data
             </>
           )}
         </div>
-        <div className="space-x-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-end">
           {pagination && (
             <span className="text-sm text-muted-foreground">
               Page {pagination.page} of {pagination.totalPages}
