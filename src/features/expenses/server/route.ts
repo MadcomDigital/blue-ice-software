@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 
 import { createExpense, deleteExpense, getExpenses, updateExpense } from '@/features/expenses/queries';
 import { createExpenseSchema, getExpensesQuerySchema, updateExpenseSchema } from '@/features/expenses/schema';
+import { notifyAdmins } from '@/features/notifications/server/notify-admins';
 import { sessionMiddleware } from '@/lib/session-middleware';
 
 const app = new Hono()
@@ -61,6 +62,22 @@ const app = new Hono()
         status,
         approvedById: status === ExpenseStatus.APPROVED ? user.id : undefined,
       });
+
+      // Notify admins if expense is pending (submitted by driver or non-admin)
+      if (status === ExpenseStatus.PENDING) {
+        notifyAdmins(
+          'New Expense Submitted',
+          `${user.name} submitted an expense of ${data.amount} for ${data.category}`,
+          {
+            type: 'EXPENSE_SUBMITTED',
+            expenseId: expense.id,
+            category: data.category,
+            amount: data.amount.toString(),
+            spentBy: user.name,
+          }
+        ).catch((err) => console.error('Failed to trigger admin notification:', err));
+      }
+
       return ctx.json({ data: expense });
     } catch (error) {
       console.error(error);
