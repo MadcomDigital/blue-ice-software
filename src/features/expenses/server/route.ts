@@ -74,7 +74,8 @@ const app = new Hono()
             category: data.category,
             amount: data.amount.toString(),
             spentBy: user.name,
-          }
+          },
+          user.id // Exclude sender
         ).catch((err) => console.error('Failed to trigger admin notification:', err));
       }
 

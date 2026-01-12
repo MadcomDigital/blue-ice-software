@@ -78,7 +78,8 @@ const app = new Hono()
           driverName: user.name,
           amount: data.actualCash.toString(),
           discrepancy: handover.discrepancy.toString(),
-        }
+        },
+        user.id // Exclude sender
       ).catch((err) => console.error('Failed to trigger admin notification:', err));
 
       return ctx.json({ data: handover, message: 'Cash handover submitted successfully' });
