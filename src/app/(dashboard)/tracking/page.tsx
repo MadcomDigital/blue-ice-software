@@ -23,7 +23,7 @@ export default function TrackingPage() {
       </div>
 
       {/* Map with Sidebar - Full height */}
-      <div className="flex-1 overflow-hidden rounded-lg border bg-card">
+      <div className="flex-1 overflow-hidden rounded-lg border bg-card min-h-[50vh]">
         <LiveMap height="100%" showSidebar={true} />
       </div>
     </div>
