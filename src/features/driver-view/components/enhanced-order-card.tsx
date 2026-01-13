@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useUnableToDeliver } from '@/features/orders/api/use-unable-to-deliver';
 
+import { useCompleteDeliveryModal } from '../hooks/use-complete-delivery-modal';
 import { UnableToDeliverDialog } from './unable-to-deliver-dialog';
 
 interface EnhancedOrderCardProps {
@@ -57,6 +58,7 @@ interface EnhancedOrderCardProps {
 export const EnhancedOrderCard = ({ order, index }: EnhancedOrderCardProps) => {
   const [unableToDeliverOpen, setUnableToDeliverOpen] = useState(false);
   const { mutateAsync: unableToDeliver, isPending } = useUnableToDeliver(order.id);
+  const { open: openCompleteDelivery } = useCompleteDeliveryModal();
 
   const totalBottles = order.orderItems.reduce((sum, item) => sum + item.quantity, 0);
   const customerBalance = Number(order.customer.cashBalance);
@@ -280,12 +282,15 @@ export const EnhancedOrderCard = ({ order, index }: EnhancedOrderCardProps) => {
         </Button>
 
         {/* Complete/View Button */}
-        <Link href={`/deliveries/${order.id}`} className="block">
-          <Button size="lg" variant={order.status === 'COMPLETED' ? 'secondary' : 'primary'} className="h-16 w-full flex-col gap-1 px-0">
-            <Package className="h-5 w-5" />
-            <span className="text-[10px] font-medium">{order.status === 'COMPLETED' ? 'View' : 'Deliver'}</span>
-          </Button>
-        </Link>
+        <Button
+          size="lg"
+          variant={order.status === 'COMPLETED' ? 'secondary' : 'primary'}
+          className="h-16 w-full flex-col gap-1 px-0"
+          onClick={() => openCompleteDelivery(order.id)}
+        >
+          <Package className="h-5 w-5" />
+          <span className="text-[10px] font-medium">{order.status === 'COMPLETED' ? 'View' : 'Deliver'}</span>
+        </Button>
       </div>
 
       {/* Unable to Deliver Dialog */}

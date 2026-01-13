@@ -19,9 +19,10 @@ import { useUpdateOrder } from '@/features/orders/api/use-update-order';
 
 interface CompleteDeliveryFormProps {
   orderId: string;
+  onSuccess?: () => void;
 }
 
-export const CompleteDeliveryForm = ({ orderId }: CompleteDeliveryFormProps) => {
+export const CompleteDeliveryForm = ({ orderId, onSuccess }: CompleteDeliveryFormProps) => {
   const router = useRouter();
   const { data: order, isLoading: isLoadingOrder } = useGetOrder(orderId);
   const { mutate: updateOrder, isPending } = useUpdateOrder();
@@ -73,7 +74,13 @@ export const CompleteDeliveryForm = ({ orderId }: CompleteDeliveryFormProps) => 
         },
       },
       {
-        onSuccess: () => router.push('/deliveries'),
+        onSuccess: () => {
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            router.push('/deliveries');
+          }
+        },
       },
     );
   };
