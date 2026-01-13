@@ -14,6 +14,7 @@ import {
 } from '@/features/cash-management/queries';
 import { getCashHandoversQuerySchema, submitCashHandoverSchema, verifyCashHandoverSchema } from '@/features/cash-management/schema';
 import { getDriverByUserId } from '@/features/drivers/queries';
+import { notifyAdmins } from '@/features/notifications/server/notify-admins';
 import { sessionMiddleware } from '@/lib/session-middleware';
 
 const ADMIN: UserRole[] = [UserRole.SUPER_ADMIN, UserRole.ADMIN];
@@ -65,6 +66,21 @@ const app = new Hono()
         shiftStart: data.shiftStart ? new Date(data.shiftStart) : undefined,
         shiftEnd: data.shiftEnd ? new Date(data.shiftEnd) : undefined,
       });
+
+      // Notify admins
+      notifyAdmins(
+        'Cash Handover Submitted',
+        `${user.name} submitted cash handover. Collected: ${data.actualCash}. Discrepancy: ${handover.discrepancy}`,
+        {
+          type: 'CASH_HANDOVER_SUBMITTED',
+          handoverId: handover.id,
+          driverId: driver.id,
+          driverName: user.name,
+          amount: data.actualCash.toString(),
+          discrepancy: handover.discrepancy.toString(),
+        },
+        user.id // Exclude sender
+      ).catch((err) => console.error('Failed to trigger admin notification:', err));
 
       return ctx.json({ data: handover, message: 'Cash handover submitted successfully' });
     } catch (error: any) {
