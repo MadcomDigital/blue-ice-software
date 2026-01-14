@@ -1099,6 +1099,7 @@ export async function markOrderUnableToDeliver(data: {
         customer: {
           include: {
             user: { select: { name: true } },
+            route: { select: { defaultDriverId: true } },
           },
         },
       },
@@ -1158,7 +1159,7 @@ export async function markOrderUnableToDeliver(data: {
       await tx.order.create({
         data: {
           customerId: order.customerId,
-          driverId: null, // Reset driver assignment for future order (Admin will re-assign)
+          driverId: order.customer.route?.defaultDriverId || null, // Assign to default driver if available
           scheduledDate: rescheduleDate,
           status: OrderStatus.SCHEDULED,
           deliveryCharge: order.deliveryCharge,
