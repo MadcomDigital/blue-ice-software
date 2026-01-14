@@ -24,8 +24,8 @@ export default function DriverLayout({ children }: DriverLayoutProps) {
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Link href="/deliveries" className="flex items-center gap-2 font-semibold">
-              <Image src="/icon1.png" alt="Logo" width={24} height={24} />
-              <span>Driver App</span>
+              <Image src="/logowhite.webp" alt="Logo" width={120} height={124} />
+              {/* <span>Driver App</span> */}
             </Link>
           </div>
           <div className="flex items-center gap-1">
