@@ -10,6 +10,7 @@ import { Map, List } from 'lucide-react';
 
 import { DriverStats } from '@/features/driver-view/components/driver-stats';
 import { EnhancedOrderCard } from '@/features/driver-view/components/enhanced-order-card';
+import { IssueOrderCard } from '@/features/driver-view/components/issue-order-card';
 import { LoadSheet } from '@/features/driver-view/components/load-sheet';
 import { DeliveryMap } from '@/features/driver-view/components/delivery-map';
 import { ExpenseForm } from '@/features/expenses/components/expense-form';
@@ -59,8 +60,9 @@ function DeliveriesContent() {
   // Use cached orders when offline, otherwise use fresh data
   const orders = isOnline ? ordersData?.orders || [] : cachedOrders;
 
-  const pendingOrders = orders.filter((o: any) => o.status !== 'COMPLETED' && o.status !== 'CANCELLED');
+  const pendingOrders = orders.filter((o: any) => o.status === 'PENDING' || o.status === 'IN_PROGRESS' || o.status === 'SCHEDULED');
   const completedOrders = orders.filter((o: any) => o.status === 'COMPLETED');
+  const issueOrders = orders.filter((o: any) => o.status === 'CANCELLED' || o.status === 'RESCHEDULED');
 
   // We need current location for the map center
   // Since useLiveLocations is not available here easily without prop drilling or new hook context,
@@ -91,9 +93,10 @@ function DeliveriesContent() {
       </div>
 
       <Tabs defaultValue="pending">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="pending">To Do ({pendingOrders.length})</TabsTrigger>
           <TabsTrigger value="completed">Done ({completedOrders.length})</TabsTrigger>
+          <TabsTrigger value="issues">Issues ({issueOrders.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending" className="mt-4 space-y-4">
@@ -115,6 +118,14 @@ function DeliveriesContent() {
             <p className="py-8 text-center text-muted-foreground">No completed deliveries today</p>
           ) : (
             completedOrders.map((order: any) => <EnhancedOrderCard key={order.id} order={order} />)
+          )}
+        </TabsContent>
+
+        <TabsContent value="issues" className="mt-4 space-y-4">
+          {issueOrders.length === 0 ? (
+            <p className="py-8 text-center text-muted-foreground">No issues today</p>
+          ) : (
+            issueOrders.map((order: any) => <IssueOrderCard key={order.id} order={order} />)
           )}
         </TabsContent>
       </Tabs>
