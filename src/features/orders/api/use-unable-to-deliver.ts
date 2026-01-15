@@ -14,10 +14,15 @@ interface Order {
 type ResponseType = InferResponseType<(typeof client.api.orders)[':id']['unable-to-deliver']['$post']>;
 type RequestType = InferRequestType<(typeof client.api.orders)[':id']['unable-to-deliver']['$post']>['json'];
 
+interface MutationContext {
+  previousOrders: unknown;
+  previousStats: unknown;
+}
+
 export const useUnableToDeliver = (orderId: string) => {
   const queryClient = useQueryClient();
 
-  const mutation = useMutation<ResponseType, Error, RequestType>({
+  const mutation = useMutation<ResponseType, Error, RequestType, MutationContext>({
     mutationFn: async (json) => {
       const response = await client.api.orders[':id']['unable-to-deliver'].$post({
         param: { id: orderId },

@@ -1,4 +1,4 @@
-import { Wallet } from 'lucide-react';
+import { ClipboardList, User, Wallet } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -7,6 +7,7 @@ import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { Button } from '@/components/ui/button';
 import { UserButton } from '@/features/auth/components/user-button';
 import { CompleteDeliveryModal } from '@/features/driver-view/components/complete-delivery-modal';
+import { BottomNav } from '@/features/driver-view/components/bottom-nav';
 import { NotificationSheet } from '@/features/notifications/components/notification-sheet';
 import { InvoiceModal } from '@/features/orders/components/invoice-modal';
 
@@ -25,7 +26,6 @@ export default function DriverLayout({ children }: DriverLayoutProps) {
           <div className="flex items-center gap-2">
             <Link href="/deliveries" className="flex items-center gap-2 font-semibold">
               <Image src="/logowhite.webp" alt="Logo" width={120} height={124} />
-              {/* <span>Driver App</span> */}
             </Link>
           </div>
           <div className="flex items-center gap-1">
@@ -40,11 +40,14 @@ export default function DriverLayout({ children }: DriverLayoutProps) {
           </div>
         </div>
       </header>
-      <main className="container mx-auto max-w-md px-4 py-6 pb-20">
+      <main className="container mx-auto max-w-md px-4 py-6 pb-24">
         {children}
         <CompleteDeliveryModal />
         <InvoiceModal />
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }

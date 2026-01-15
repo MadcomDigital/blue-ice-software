@@ -1,4 +1,5 @@
 # Driver App - Implementation Tickets
+
 ## Step-by-Step Technical Tasks
 
 ---
@@ -6,17 +7,20 @@
 ## Phase 1: Order Visibility Fix (Critical)
 
 ### Ticket 1.1: Add Issues Tab to Deliveries Page
+
 **File:** `src/app/(driver)/deliveries/page.tsx`
 
 **Current Problem:**
+
 ```typescript
 // Sirf yeh 2 filter hain
-const pendingOrders = orders?.filter(o => o.status === 'PENDING' || o.status === 'IN_PROGRESS');
-const completedOrders = orders?.filter(o => o.status === 'COMPLETED');
+const pendingOrders = orders?.filter((o) => o.status === 'PENDING' || o.status === 'IN_PROGRESS');
+const completedOrders = orders?.filter((o) => o.status === 'COMPLETED');
 // CANCELLED aur RESCHEDULED ka koi filter nahi
 ```
 
 **Implementation:**
+
 ```typescript
 // 1. Tab state add karo
 const [activeTab, setActiveTab] = useState<'todo' | 'done' | 'issues'>('todo');
@@ -46,9 +50,11 @@ const counts = {
 ---
 
 ### Ticket 1.2: Update Driver Stats Query
+
 **File:** `src/features/driver-view/queries.ts`
 
 **Current Problem:**
+
 ```typescript
 // Sirf 2 counts return ho rahe hain
 return {
@@ -60,25 +66,24 @@ return {
 ```
 
 **Implementation:**
+
 ```typescript
 export const getDriverStats = async (driverId: string, date: string) => {
   const orders = await prisma.order.findMany({
-    where: { driverId, scheduledDate: date }
+    where: { driverId, scheduledDate: date },
   });
 
-  const pending = orders.filter(o =>
-    o.status === 'PENDING' || o.status === 'IN_PROGRESS'
-  );
-  const completed = orders.filter(o => o.status === 'COMPLETED');
-  const cancelled = orders.filter(o => o.status === 'CANCELLED');
-  const rescheduled = orders.filter(o => o.status === 'RESCHEDULED');
+  const pending = orders.filter((o) => o.status === 'PENDING' || o.status === 'IN_PROGRESS');
+  const completed = orders.filter((o) => o.status === 'COMPLETED');
+  const cancelled = orders.filter((o) => o.status === 'CANCELLED');
+  const rescheduled = orders.filter((o) => o.status === 'RESCHEDULED');
 
   return {
     totalOrders: orders.length,
     pendingOrders: pending.length,
     completedOrders: completed.length,
-    cancelledOrders: cancelled.length,      // NEW
-    rescheduledOrders: rescheduled.length,  // NEW
+    cancelledOrders: cancelled.length, // NEW
+    rescheduledOrders: rescheduled.length, // NEW
     // ... baqi calculations
   };
 };
@@ -87,11 +92,13 @@ export const getDriverStats = async (driverId: string, date: string) => {
 ---
 
 ### Ticket 1.3: Create Issue Order Card Component
+
 **File:** `src/features/driver-view/components/issue-order-card.tsx` (NEW)
 
 **Purpose:** Cancelled/Rescheduled orders ke liye special card jo reason dikhaye
 
 **Implementation:**
+
 ```typescript
 interface IssueOrderCardProps {
   order: Order;
@@ -147,11 +154,13 @@ export const IssueOrderCard = ({ order }: IssueOrderCardProps) => {
 ---
 
 ### Ticket 1.4: Add Optimistic Update to Unable-to-Deliver
+
 **File:** `src/features/driver-view/api/use-unable-to-deliver.ts`
 
 **Current Problem:** Order status update ke baad page refresh karna padta hai
 
 **Implementation:**
+
 ```typescript
 export const useUnableToDeliver = () => {
   const queryClient = useQueryClient();
@@ -171,7 +180,7 @@ export const useUnableToDeliver = () => {
 
       // 3. Orders cache update karo
       queryClient.setQueryData(['orders'], (old: Order[]) =>
-        old?.map(order =>
+        old?.map((order) =>
           order.id === variables.orderId
             ? {
                 ...order,
@@ -181,20 +190,16 @@ export const useUnableToDeliver = () => {
                 rescheduledToDate: variables.rescheduleDate,
                 updatedAt: new Date().toISOString(),
               }
-            : order
-        )
+            : order,
+        ),
       );
 
       // 4. Stats cache update karo
       queryClient.setQueryData(['driver-stats'], (old: any) => ({
         ...old,
         pendingOrders: old.pendingOrders - 1,
-        cancelledOrders: variables.action === 'CANCEL'
-          ? (old.cancelledOrders || 0) + 1
-          : old.cancelledOrders,
-        rescheduledOrders: variables.action === 'RESCHEDULE'
-          ? (old.rescheduledOrders || 0) + 1
-          : old.rescheduledOrders,
+        cancelledOrders: variables.action === 'CANCEL' ? (old.cancelledOrders || 0) + 1 : old.cancelledOrders,
+        rescheduledOrders: variables.action === 'RESCHEDULE' ? (old.rescheduledOrders || 0) + 1 : old.rescheduledOrders,
       }));
 
       return { previousOrders, previousStats };
@@ -223,9 +228,11 @@ export const useUnableToDeliver = () => {
 ---
 
 ### Ticket 1.5: Add Optimistic Update to Complete Delivery
+
 **File:** `src/features/driver-view/api/use-complete-delivery.ts`
 
 **Same pattern as 1.4:**
+
 ```typescript
 onMutate: async (variables) => {
   await queryClient.cancelQueries({ queryKey: ['orders'] });
@@ -233,11 +240,7 @@ onMutate: async (variables) => {
   const previousOrders = queryClient.getQueryData(['orders']);
 
   queryClient.setQueryData(['orders'], (old: Order[]) =>
-    old?.map(order =>
-      order.id === variables.orderId
-        ? { ...order, status: 'COMPLETED', completedAt: new Date() }
-        : order
-    )
+    old?.map((order) => (order.id === variables.orderId ? { ...order, status: 'COMPLETED', completedAt: new Date() } : order)),
   );
 
   queryClient.setQueryData(['driver-stats'], (old: any) => ({
@@ -255,36 +258,12 @@ onMutate: async (variables) => {
 
 ## Phase 2: Real-Time Stats
 
-### Ticket 2.1: Add Polling to Stats Hook
-**File:** `src/features/driver-view/api/use-get-driver-stats.ts`
-
-**Implementation:**
-```typescript
-export const useGetDriverStats = (date?: string) => {
-  return useQuery({
-    queryKey: ['driver-stats', date],
-    queryFn: async () => {
-      const response = await client.api.drivers.me.stats.$get({
-        query: { date }
-      });
-      return response.json();
-    },
-
-    // NEW: Auto refresh settings
-    staleTime: 10 * 1000,        // 10 sec baad stale
-    refetchInterval: 30 * 1000,  // Har 30 sec refresh
-    refetchOnWindowFocus: true,  // Tab switch pe refresh
-    refetchOnReconnect: true,    // Internet wapas aaye to refresh
-  });
-};
-```
-
----
-
 ### Ticket 2.2: Create Enhanced Stats Dashboard
+
 **File:** `src/features/driver-view/components/stats-dashboard.tsx` (NEW)
 
 **Implementation:**
+
 ```typescript
 export const StatsDashboard = () => {
   const { data: stats, isRefetching } = useGetDriverStats();
@@ -338,9 +317,11 @@ export const StatsDashboard = () => {
 ---
 
 ### Ticket 2.3: Update Stats API Response
+
 **File:** `src/features/drivers/server/route.ts`
 
 **Enhance `/me/stats` endpoint:**
+
 ```typescript
 .get('/me/stats', sessionMiddleware, async (c) => {
   const driverId = c.get('driverId');
@@ -385,6 +366,7 @@ export const StatsDashboard = () => {
 ## Phase 3: Date & Session Handling
 
 ### Ticket 3.1: Create Business Date Utility
+
 **File:** `src/lib/utils/business-date.ts` (NEW)
 
 **Purpose:** Midnight ke baad bhi same day consider karna
@@ -432,9 +414,11 @@ export const getDateLabel = (date: string): string => {
 ---
 
 ### Ticket 3.2: Add Date Selector to Deliveries Page
+
 **File:** `src/app/(driver)/deliveries/page.tsx`
 
 **Implementation:**
+
 ```typescript
 // 1. Date state with business date default
 const [selectedDate, setSelectedDate] = useState(getBusinessDate());
@@ -485,15 +469,13 @@ const { data: orders } = useGetOrders({
 ---
 
 ### Ticket 3.3: Update Orders Query for Carryover
+
 **File:** `src/features/orders/queries.ts`
 
 **Add carryover logic:**
+
 ```typescript
-export const getDriverOrders = async (
-  driverId: string,
-  date: string,
-  includeCarryover: boolean = true
-) => {
+export const getDriverOrders = async (driverId: string, date: string, includeCarryover: boolean = true) => {
   const whereClause: Prisma.OrderWhereInput = {
     driverId,
     OR: [
@@ -501,10 +483,14 @@ export const getDriverOrders = async (
       { scheduledDate: date },
 
       // Carryover: Purane pending orders jo complete nahi huay
-      ...(includeCarryover ? [{
-        scheduledDate: { lt: date },
-        status: { in: ['PENDING', 'IN_PROGRESS', 'SCHEDULED'] },
-      }] : []),
+      ...(includeCarryover
+        ? [
+            {
+              scheduledDate: { lt: date },
+              status: { in: ['PENDING', 'IN_PROGRESS', 'SCHEDULED'] },
+            },
+          ]
+        : []),
     ],
   };
 
@@ -515,8 +501,8 @@ export const getDriverOrders = async (
       items: { include: { product: true } },
     },
     orderBy: [
-      { scheduledDate: 'asc' },  // Purane pehle
-      { sequenceOrder: 'asc' },  // Phir sequence
+      { scheduledDate: 'asc' }, // Purane pehle
+      { sequenceOrder: 'asc' }, // Phir sequence
     ],
   });
 };
@@ -527,9 +513,11 @@ export const getDriverOrders = async (
 ## Phase 4: Financial Dashboard
 
 ### Ticket 4.1: Create Financial Summary Page
+
 **File:** `src/app/(driver)/financials/page.tsx` (NEW)
 
 **Implementation:**
+
 ```typescript
 export default function FinancialsPage() {
   const { data: summary } = useDriverDaySummary();
@@ -626,6 +614,7 @@ export default function FinancialsPage() {
 ---
 
 ### Ticket 4.2: Create Expense Management Page
+
 **File:** `src/app/(driver)/financials/expenses/page.tsx` (NEW)
 
 ```typescript
@@ -676,6 +665,7 @@ export default function ExpensesPage() {
 ---
 
 ### Ticket 4.3: Create Financial History Page
+
 **File:** `src/app/(driver)/financials/history/page.tsx` (NEW)
 
 ```typescript
@@ -764,6 +754,7 @@ export default function FinancialHistoryPage() {
 ---
 
 ### Ticket 4.4: Add Financial History API
+
 **File:** `src/features/drivers/server/route.ts`
 
 ```typescript
@@ -819,9 +810,11 @@ export default function FinancialHistoryPage() {
 ## Phase 5: UI/UX Polish
 
 ### Ticket 5.1: Create Bottom Navigation
+
 **File:** `src/app/(driver)/layout.tsx`
 
 **Implementation:**
+
 ```typescript
 export default function DriverLayout({ children }) {
   const pathname = usePathname();
@@ -869,6 +862,7 @@ export default function DriverLayout({ children }) {
 ---
 
 ### Ticket 5.2: Add Loading Skeletons
+
 **File:** `src/features/driver-view/components/skeletons.tsx` (NEW)
 
 ```typescript
@@ -909,6 +903,7 @@ export const OrderListSkeleton = () => (
 ---
 
 ### Ticket 5.3: Add Pull-to-Refresh
+
 **File:** `src/app/(driver)/deliveries/page.tsx`
 
 ```typescript
@@ -937,27 +932,29 @@ return (
 ## Quick Reference: Files to Create/Modify
 
 ### New Files
-| File | Ticket |
-|------|--------|
-| `src/features/driver-view/components/issue-order-card.tsx` | 1.3 |
-| `src/features/driver-view/components/stats-dashboard.tsx` | 2.2 |
-| `src/lib/utils/business-date.ts` | 3.1 |
-| `src/app/(driver)/financials/page.tsx` | 4.1 |
-| `src/app/(driver)/financials/expenses/page.tsx` | 4.2 |
-| `src/app/(driver)/financials/history/page.tsx` | 4.3 |
-| `src/features/driver-view/components/skeletons.tsx` | 5.2 |
+
+| File                                                       | Ticket |
+| ---------------------------------------------------------- | ------ |
+| `src/features/driver-view/components/issue-order-card.tsx` | 1.3    |
+| `src/features/driver-view/components/stats-dashboard.tsx`  | 2.2    |
+| `src/lib/utils/business-date.ts`                           | 3.1    |
+| `src/app/(driver)/financials/page.tsx`                     | 4.1    |
+| `src/app/(driver)/financials/expenses/page.tsx`            | 4.2    |
+| `src/app/(driver)/financials/history/page.tsx`             | 4.3    |
+| `src/features/driver-view/components/skeletons.tsx`        | 5.2    |
 
 ### Modified Files
-| File | Tickets |
-|------|---------|
-| `src/app/(driver)/deliveries/page.tsx` | 1.1, 3.2, 5.3 |
-| `src/features/driver-view/queries.ts` | 1.2 |
-| `src/features/driver-view/api/use-unable-to-deliver.ts` | 1.4 |
-| `src/features/driver-view/api/use-complete-delivery.ts` | 1.5 |
-| `src/features/driver-view/api/use-get-driver-stats.ts` | 2.1 |
-| `src/features/drivers/server/route.ts` | 2.3, 4.4 |
-| `src/features/orders/queries.ts` | 3.3 |
-| `src/app/(driver)/layout.tsx` | 5.1 |
+
+| File                                                    | Tickets       |
+| ------------------------------------------------------- | ------------- |
+| `src/app/(driver)/deliveries/page.tsx`                  | 1.1, 3.2, 5.3 |
+| `src/features/driver-view/queries.ts`                   | 1.2           |
+| `src/features/driver-view/api/use-unable-to-deliver.ts` | 1.4           |
+| `src/features/driver-view/api/use-complete-delivery.ts` | 1.5           |
+| `src/features/driver-view/api/use-get-driver-stats.ts`  | 2.1           |
+| `src/features/drivers/server/route.ts`                  | 2.3, 4.4      |
+| `src/features/orders/queries.ts`                        | 3.3           |
+| `src/app/(driver)/layout.tsx`                           | 5.1           |
 
 ---
 
@@ -993,5 +990,5 @@ Week 4: Polish
 
 ---
 
-*Total Tickets: 17*
-*Estimated Effort: 3-4 weeks*
+_Total Tickets: 17_
+_Estimated Effort: 3-4 weeks_

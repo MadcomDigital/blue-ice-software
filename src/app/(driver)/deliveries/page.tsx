@@ -1,14 +1,17 @@
 'use client';
 
-import { format } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import { Suspense, useEffect, useState } from 'react';
 
 import { PageLoader } from '@/components/page-loader';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentDriver } from '@/features/driver-view/api/use-current-driver';
-import { Map, List } from 'lucide-react';
+import { CalendarIcon, Map, List } from 'lucide-react';
 
-import { DriverStats } from '@/features/driver-view/components/driver-stats';
+import { StatsDashboard } from '@/features/driver-view/components/stats-dashboard';
 import { EnhancedOrderCard } from '@/features/driver-view/components/enhanced-order-card';
 import { IssueOrderCard } from '@/features/driver-view/components/issue-order-card';
 import { LoadSheet } from '@/features/driver-view/components/load-sheet';
@@ -19,17 +22,22 @@ import { DriverLocationTracker } from '@/features/tracking/components/driver-loc
 import { useOnlineStatus } from '@/hooks/use-online-status';
 import { cacheTodaysOrders, getCachedOrders } from '@/lib/offline-storage';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { getBusinessDate, getDateLabel, getYesterdayBusinessDate } from '@/lib/utils/business-date';
+import { cn } from '@/lib/utils';
 
 function DeliveriesContent() {
   const { data: driver, isLoading: isLoadingDriver } = useCurrentDriver();
   const isOnline = useOnlineStatus();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const [selectedDate, setSelectedDate] = useState(getBusinessDate());
   const [cachedOrders, setCachedOrders] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
 
+  const today = getBusinessDate();
+  const yesterday = getYesterdayBusinessDate();
+
   const { data: ordersData, isLoading: isLoadingOrders } = useGetOrders({
     driverId: driver?.id,
-    date: today,
+    date: selectedDate,
   });
 
   // Cache orders when online
@@ -71,8 +79,47 @@ function DeliveriesContent() {
 
   return (
     <div className="space-y-6">
-      <DriverStats />
+      <StatsDashboard />
       <DriverLocationTracker />
+
+      {/* Date Selector */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={selectedDate === today ? 'primary' : 'outline'}
+          size="sm"
+          onClick={() => setSelectedDate(today)}
+        >
+          Today
+        </Button>
+        <Button
+          variant={selectedDate === yesterday ? 'primary' : 'outline'}
+          size="sm"
+          onClick={() => setSelectedDate(yesterday)}
+        >
+          Yesterday
+        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(selectedDate !== today && selectedDate !== yesterday && 'border-primary text-primary')}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {getDateLabel(selectedDate)}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={parseISO(selectedDate)}
+              onSelect={(date) => date && setSelectedDate(format(date, 'yyyy-MM-dd'))}
+              disabled={(date) => date > new Date()}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
 
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
