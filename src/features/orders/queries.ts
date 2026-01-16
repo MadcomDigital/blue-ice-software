@@ -247,8 +247,10 @@ export async function getOrderForInvoice(id: string) {
     });
 
     if (orderLedger) {
-      // Previous balance = balanceAfter + orderAmount - payment
-      previousBalance = orderLedger.balanceAfter.add(order.totalAmount).sub(order.cashCollected);
+      // Previous balance = balanceBeforeSale = balanceAfterSale + orderAmount
+      // Note: We use the 'Sale' ledger entry, which reflects the debit. We add the amount back to get the pre-transaction balance.
+      // We do NOT subtract cashCollected because the 'Sale' entry balanceAfter does not include payment yet.
+      previousBalance = orderLedger.balanceAfter.add(order.totalAmount);
     }
   }
 
