@@ -1,15 +1,18 @@
 import { zValidator } from '@hono/zod-validator';
 import { Prisma, UserRole } from '@prisma/client';
 import { Hono } from 'hono';
+import { z } from 'zod';
 
 import {
   checkCustomerCodeExists,
   createCustomerWithProfile,
   deleteCustomer,
+  deleteCustomerSpecialPrice,
   generateNextCustomerCode,
   getCustomerWithOrderHistory,
   getCustomers,
   updateCustomerProfile,
+  updateCustomerSpecialPrice,
 } from '@/features/customers/queries';
 import { createCustomerSchema, getCustomersQuerySchema, updateCustomerSchema } from '@/features/customers/schema';
 import { generateToken } from '@/lib/authenticate';
@@ -233,6 +236,60 @@ const app = new Hono()
       }
 
       return ctx.json({ error: 'Failed to delete customer' }, 500);
+    }
+  })
+
+  /**
+   * POST /api/customers/:id/special-prices
+   * Set special price for a product
+   */
+  .post(
+    '/:id/special-prices',
+    sessionMiddleware,
+    zValidator(
+      'json',
+      z.object({
+        productId: z.string(),
+        price: z.number().min(0),
+      }),
+    ),
+    async (ctx) => {
+      const user = ctx.get('user');
+      const { id } = ctx.req.param();
+      const { productId, price } = ctx.req.valid('json');
+
+      if (user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN && user.role !== UserRole.INVENTORY_MGR) {
+        return ctx.json({ error: 'Unauthorized' }, 403);
+      }
+
+      try {
+        const result = await updateCustomerSpecialPrice(id, productId, price);
+        return ctx.json({ data: result, message: 'Special price updated' });
+      } catch (error) {
+        console.error('[UPDATE_SPECIAL_PRICE]:', error);
+        return ctx.json({ error: 'Failed to update special price' }, 500);
+      }
+    },
+  )
+
+  /**
+   * DELETE /api/customers/:id/special-prices/:productId
+   * Delete special price for a product
+   */
+  .delete('/:id/special-prices/:productId', sessionMiddleware, async (ctx) => {
+    const user = ctx.get('user');
+    const { id, productId } = ctx.req.param();
+
+    if (user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN && user.role !== UserRole.INVENTORY_MGR) {
+      return ctx.json({ error: 'Unauthorized' }, 403);
+    }
+
+    try {
+      await deleteCustomerSpecialPrice(id, productId);
+      return ctx.json({ success: true, message: 'Special price removed' });
+    } catch (error) {
+      console.error('[DELETE_SPECIAL_PRICE]:', error);
+      return ctx.json({ error: 'Failed to delete special price' }, 500);
     }
   });
 

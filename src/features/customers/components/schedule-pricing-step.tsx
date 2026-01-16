@@ -11,11 +11,17 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CUSTOMER_TYPES, DELIVERY_DAYS } from '@/features/customers/constants';
 import type { CreateCustomerInput } from '@/features/customers/schema';
+import { CustomerPricingTable } from '@/features/customers/components/customer-pricing-table';
 import { useGetProducts } from '@/features/products/api/use-get-products';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
 
-export const SchedulePricingStep = () => {
+interface SchedulePricingStepProps {
+  customerId?: string;
+  specialPrices?: any[];
+}
+
+export const SchedulePricingStep = ({ customerId, specialPrices }: SchedulePricingStepProps) => {
   const form = useFormContext<CreateCustomerInput>();
   const selectedDays = form.watch('deliveryDays') || [];
   const { data: productsData, isLoading: isLoadingProducts } = useGetProducts();
@@ -226,12 +232,18 @@ export const SchedulePricingStep = () => {
             )}
           />
 
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20">
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              <span className="font-semibold">💡 Note:</span> Custom pricing per product can be configured after customer creation in the
-              customer profile settings.
-            </p>
-          </div>
+          {customerId ? (
+            <div className="mt-6">
+              <CustomerPricingTable customerId={customerId} specialPrices={specialPrices} />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/20">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
+                <span className="font-semibold">💡 Note:</span> Custom pricing per product can be configured after customer creation in the
+                customer profile settings.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

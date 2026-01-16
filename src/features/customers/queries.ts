@@ -321,10 +321,61 @@ export async function getCustomerWithOrderHistory(customerId: string) {
           createdAt: 'desc',
         },
       },
+      specialPrices: {
+        include: {
+          product: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
+              basePrice: true,
+            },
+          },
+        },
+      },
     },
   });
 
   return customer;
+}
+
+/**
+ * Upsert customer special price for a product
+ */
+export async function updateCustomerSpecialPrice(customerId: string, productId: string, price: number) {
+  return await db.customerProductPrice.upsert({
+    where: {
+      customerId_productId: {
+        customerId,
+        productId,
+      },
+    },
+    update: {
+      customPrice: new Prisma.Decimal(price),
+    },
+    create: {
+      customerId,
+      productId,
+      customPrice: new Prisma.Decimal(price),
+    },
+    include: {
+      product: true,
+    },
+  });
+}
+
+/**
+ * Delete customer special price
+ */
+export async function deleteCustomerSpecialPrice(customerId: string, productId: string) {
+  return await db.customerProductPrice.delete({
+    where: {
+      customerId_productId: {
+        customerId,
+        productId,
+      },
+    },
+  });
 }
 
 /**

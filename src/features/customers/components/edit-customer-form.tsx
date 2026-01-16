@@ -127,7 +127,7 @@ export const EditCustomerForm = ({ customerId }: EditCustomerFormProps) => {
                 <LocationStep />
               </TabsContent>
               <TabsContent value="schedule">
-                <SchedulePricingStep />
+                <SchedulePricingStep customerId={customerId} specialPrices={(customer as any).specialPrices} />
               </TabsContent>
             </div>
           </Tabs>

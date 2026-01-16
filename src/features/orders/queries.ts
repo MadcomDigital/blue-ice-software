@@ -293,6 +293,12 @@ export async function generateOrders(data: { date: string; routeId?: string }) {
           defaultDriverId: true,
         },
       },
+      specialPrices: {
+        select: {
+          productId: true,
+          customPrice: true,
+        },
+      },
     },
   });
 
@@ -396,7 +402,10 @@ export async function generateOrders(data: { date: string; routeId?: string }) {
           const product = productMap.get(customer.defaultProductId!);
           if (!product) continue;
 
-          const price = product.basePrice;
+          // Check for special price
+          const specialPrice = customer.specialPrices.find((sp) => sp.productId === product.id);
+          const price = specialPrice ? specialPrice.customPrice : product.basePrice;
+
           const quantity = customer.defaultQuantity;
           const totalAmount = price.mul(quantity);
 
@@ -480,6 +489,12 @@ export async function* generateOrdersStream(data: { date: string; routeId?: stri
       route: {
         select: {
           defaultDriverId: true,
+        },
+      },
+      specialPrices: {
+        select: {
+          productId: true,
+          customPrice: true,
         },
       },
     },
@@ -578,7 +593,10 @@ export async function* generateOrdersStream(data: { date: string; routeId?: stri
             const product = productMap.get(customer.defaultProductId!);
             if (!product) continue;
 
-            const price = product.basePrice;
+            // Check for special price
+            const specialPrice = customer.specialPrices.find((sp) => sp.productId === product.id);
+            const price = specialPrice ? specialPrice.customPrice : product.basePrice;
+
             const quantity = customer.defaultQuantity;
             const totalAmount = price.mul(quantity);
 
@@ -713,13 +731,32 @@ export async function createOrder(data: {
   });
   const productMap = new Map(products.map((p) => [p.id, p]));
 
+  // Fetch customer special prices
+  const customerProfile = await db.customerProfile.findUnique({
+    where: { id: data.customerId },
+    include: {
+      specialPrices: {
+        where: { productId: { in: productIds } },
+      },
+    },
+  });
+
+  const specialPriceMap = new Map(customerProfile?.specialPrices.map((sp) => [sp.productId, sp.customPrice]));
+
   let totalAmount = new Prisma.Decimal(0);
 
   const orderItemsData = items.map((item) => {
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Product ${item.productId} not found`);
 
-    const price = item.price !== undefined ? new Prisma.Decimal(item.price) : product.basePrice;
+    let price: Prisma.Decimal;
+    if (item.price !== undefined) {
+      price = new Prisma.Decimal(item.price);
+    } else {
+      const customPrice = specialPriceMap.get(item.productId);
+      price = customPrice ? customPrice : product.basePrice;
+    }
+
     const amount = price.mul(item.quantity);
     totalAmount = totalAmount.add(amount);
 
@@ -821,6 +858,19 @@ export async function updateOrder(
       });
       const productMap = new Map(products.map((p) => [p.id, p]));
 
+      // Fetch customer special prices
+      const customerId = orderData.customerId || existingOrder.customerId;
+      const customerProfile = await tx.customerProfile.findUnique({
+        where: { id: customerId },
+        include: {
+          specialPrices: {
+            where: { productId: { in: productIds } },
+          },
+        },
+      });
+
+      const specialPriceMap = new Map(customerProfile?.specialPrices.map((sp) => [sp.productId, sp.customPrice]));
+
       let totalAmount = new Prisma.Decimal(0);
 
       await tx.orderItem.deleteMany({ where: { orderId: id } });
@@ -829,7 +879,13 @@ export async function updateOrder(
         const product = productMap.get(item.productId);
         if (!product) throw new Error(`Product ${item.productId} not found`);
 
-        const price = item.price !== undefined ? new Prisma.Decimal(item.price) : product.basePrice;
+        let price: Prisma.Decimal;
+        if (item.price !== undefined) {
+          price = new Prisma.Decimal(item.price);
+        } else {
+          const customPrice = specialPriceMap.get(item.productId);
+          price = customPrice ? customPrice : product.basePrice;
+        }
 
         // CRITICAL FIX: If filledGiven is provided (Delivery Mode), use it as the billing quantity.
         // This ensures on-demand quantity changes (e.g. ordered 1, delivered 3) are correctly billed.
