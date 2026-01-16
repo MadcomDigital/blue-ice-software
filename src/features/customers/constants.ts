@@ -90,7 +90,7 @@ export const DEFAULT_FORM_VALUES = {
   // Business
   type: CustomerType.RESIDENTIAL,
   deliveryDays: [],
-  creditLimit: '2000',
+  creditLimit: '5000',
 
   // Legacy Migration
   openingCashBalance: '0',

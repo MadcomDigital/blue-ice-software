@@ -193,48 +193,157 @@ export function ComprehensiveDashboard() {
         </CardContent>
       </Card>
 
-      {/* Overview KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-            <div className="rounded-full bg-green-100/50 p-2 dark:bg-green-900/30">
-              <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-2xl font-bold text-transparent">
-              PKR {data?.overview.totalRevenue.toLocaleString()}
-            </div>
-            <div className="mt-1 flex items-center gap-1 text-xs font-medium">
-              {getTrendIcon(data?.overview.revenueChange || 0)}
-              <span className={getTrendColor(data?.overview.revenueChange || 0)}>
-                {Math.abs(data?.overview.revenueChange || 0).toFixed(1)}%
-              </span>
-              <span className="text-muted-foreground">vs prev</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Row 1: Order Pipeline (What's Happening) */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Order Pipeline</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* Orders Booked */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Orders Booked</CardTitle>
+              <div className="rounded-full bg-blue-100/50 p-2 dark:bg-blue-900/30">
+                <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{data?.overview.totalOrders}</div>
+              <div className="mt-1 flex items-center gap-1 text-xs font-medium">
+                {getTrendIcon(data?.overview.ordersChange || 0)}
+                <span className={getTrendColor(data?.overview.ordersChange || 0)}>
+                  {Math.abs(data?.overview.ordersChange || 0).toFixed(1)}%
+                </span>
+                <span className="text-muted-foreground">vs prev</span>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
-            <div className="rounded-full bg-blue-100/50 p-2 dark:bg-blue-900/30">
-              <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{data?.overview.totalOrders}</div>
-            <div className="mt-1 flex items-center gap-1 text-xs font-medium">
-              {getTrendIcon(data?.overview.ordersChange || 0)}
-              <span className={getTrendColor(data?.overview.ordersChange || 0)}>
-                {Math.abs(data?.overview.ordersChange || 0).toFixed(1)}%
-              </span>
-              <span className="text-muted-foreground">vs prev</span>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Delivered */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Delivered</CardTitle>
+              <div className="rounded-full bg-green-100/50 p-2 dark:bg-green-900/30">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{data?.overview.completedOrders || 0}</div>
+              <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                  {(data?.overview.completionRate || 0).toFixed(0)}% Complete
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* Pending */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
+              <div className="rounded-full bg-amber-100/50 p-2 dark:bg-amber-900/30">
+                <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{data?.overview.pendingOrders || 0}</div>
+              <p className="mt-1 text-xs text-muted-foreground">Still to deliver</p>
+            </CardContent>
+          </Card>
+
+          {/* Issues */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Issues</CardTitle>
+              <div className="rounded-full bg-red-100/50 p-2 dark:bg-red-900/30">
+                <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{data?.overview.issueOrders || 0}</div>
+              <p className="mt-1 text-xs text-muted-foreground">Cancelled / Rescheduled</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Row 2: Revenue Breakdown (Money Perspective) */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Revenue Breakdown</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {/* Projected Revenue */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Projected Revenue</CardTitle>
+              <div className="rounded-full bg-blue-100/50 p-2 dark:bg-blue-900/30">
+                <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                PKR {(data?.overview.projectedRevenue || 0).toLocaleString()}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">All booked orders</p>
+            </CardContent>
+          </Card>
+
+          {/* Realized Revenue */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Realized Revenue</CardTitle>
+              <div className="rounded-full bg-green-100/50 p-2 dark:bg-green-900/30">
+                <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gradient-to-r from-green-600 to-emerald-500 bg-clip-text text-2xl font-bold text-transparent">
+                PKR {(data?.overview.realizedRevenue || data?.overview.totalRevenue || 0).toLocaleString()}
+              </div>
+              <div className="mt-1 flex items-center gap-1 text-xs font-medium">
+                {getTrendIcon(data?.overview.revenueChange || 0)}
+                <span className={getTrendColor(data?.overview.revenueChange || 0)}>
+                  {Math.abs(data?.overview.revenueChange || 0).toFixed(1)}%
+                </span>
+                <span className="text-muted-foreground">vs prev</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cash Collected */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Cash Collected</CardTitle>
+              <div className="rounded-full bg-emerald-100/50 p-2 dark:bg-emerald-900/30">
+                <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                PKR {(data?.cashManagement.totalCashCollected || 0).toLocaleString()}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Money in hand</p>
+            </CardContent>
+          </Card>
+
+          {/* Avg Order Value */}
+          <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Avg Order Value</CardTitle>
+              <div className="rounded-full bg-orange-100/50 p-2 dark:bg-orange-900/30">
+                <BarChart3 className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                PKR {(data?.overview.avgOrderValue || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">Per delivered order</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Row 3: Quick Stats */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Active Customers */}
         <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Active Customers</CardTitle>
@@ -253,18 +362,17 @@ export function ComprehensiveDashboard() {
           </CardContent>
         </Card>
 
+        {/* Active Drivers */}
         <Card className="glass-card transition-transform duration-300 hover:scale-[1.02]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Order Value</CardTitle>
-            <div className="rounded-full bg-orange-100/50 p-2 dark:bg-orange-900/30">
-              <BarChart3 className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Active Drivers</CardTitle>
+            <div className="rounded-full bg-indigo-100/50 p-2 dark:bg-indigo-900/30">
+              <Users className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              PKR {data?.overview.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">Per completed order</p>
+            <div className="text-2xl font-bold text-foreground">{data?.overview.totalDrivers}</div>
+            <p className="mt-1 text-xs text-muted-foreground">On duty</p>
           </CardContent>
         </Card>
       </div>

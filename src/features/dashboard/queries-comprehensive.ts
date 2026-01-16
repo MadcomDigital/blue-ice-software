@@ -549,24 +549,55 @@ export async function getComprehensiveDashboardData(params?: { startDate?: Date;
   const revenueChange = previousRevenueValue > 0 ? ((currentRevenueValue - previousRevenueValue) / previousRevenueValue) * 100 : 0;
   const ordersChange = prevOrders > 0 ? ((totalVolume - prevOrders) / prevOrders) * 100 : 0;
 
+  // Calculate projected revenue (sum of ALL orders regardless of status)
+  const projectedRevenue = ordersByStatus.reduce((sum, s) => sum + parseFloat(s._sum.totalAmount?.toString() || '0'), 0);
+
+  // Calculate order pipeline breakdown
+  const pendingStatuses = [OrderStatus.PENDING, OrderStatus.SCHEDULED, OrderStatus.IN_PROGRESS] as OrderStatus[];
+  const issueStatuses = [OrderStatus.CANCELLED, OrderStatus.RESCHEDULED] as OrderStatus[];
+
+  const pendingOrders = ordersByStatus
+    .filter((s) => pendingStatuses.includes(s.status))
+    .reduce((sum, s) => sum + s._count.id, 0);
+  const issueOrders = ordersByStatus
+    .filter((s) => issueStatuses.includes(s.status))
+    .reduce((sum, s) => sum + s._count.id, 0);
+
+  // Completion rate
+  const completionRate = totalVolume > 0 ? (totalCompletedOrders / totalVolume) * 100 : 0;
+
   return {
     overview: {
-      totalRevenue: currentRevenueValue,
+      // Revenue metrics (clearly separated)
+      realizedRevenue: currentRevenueValue, // Money from COMPLETED orders only
+      projectedRevenue, // Total value of ALL orders (pipeline)
       revenueChange,
-      totalOrders: totalVolume,
+
+      // Order pipeline metrics
+      totalOrders: totalVolume, // All orders booked
+      completedOrders: totalCompletedOrders, // Orders delivered
+      pendingOrders, // Orders still to deliver
+      issueOrders, // Cancelled + Rescheduled
+      completionRate, // % of orders completed
       ordersChange,
+
+      // Customer & Driver counts
       totalCustomers,
       totalDrivers,
       newCustomers,
-      // Fixed: AOV uses Completed Orders, not Total Volume
+
+      // Average Order Value (based on COMPLETED orders only - makes sense)
       avgOrderValue: totalCompletedOrders > 0 ? currentRevenueValue / totalCompletedOrders : 0,
 
-      // New Profitability Metrics
+      // Profitability Metrics
       totalExpenses: parseFloat(totalExpenses._sum.amount?.toString() || '0'),
       netProfit: currentRevenueValue - parseFloat(totalExpenses._sum.amount?.toString() || '0'),
 
       // Asset Metrics
       totalReceivables: Math.abs(parseFloat(totalReceivables._sum.cashBalance?.toString() || '0')),
+
+      // Legacy field for backward compatibility
+      totalRevenue: currentRevenueValue,
     },
     orderStats: {
       byStatus: ordersByStatus.map((s) => ({
