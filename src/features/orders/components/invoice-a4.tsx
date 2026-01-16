@@ -69,7 +69,9 @@ export const InvoiceA4 = ({ data }: InvoiceA4Props) => {
 
   const currentBill = Number(order.totalAmount);
   const previousBalanceNum = Number(previousBalance);
-  const totalPayable = previousBalanceNum + currentBill;
+  // Total Payable = Current Bill + Debt (where debt is negative)
+  // Since previousBalanceNum is negative for debt, we subtract it to add the magnitude
+  const totalPayable = currentBill - previousBalanceNum;
   const paymentReceived = Number(order.cashCollected);
   const netOutstanding = totalPayable - paymentReceived;
 
