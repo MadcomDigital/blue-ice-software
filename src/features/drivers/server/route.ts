@@ -13,23 +13,39 @@ import {
   getDriverLedger,
   getDrivers,
   updateDriver,
+  getDriverDeliveries,
 } from '@/features/drivers/queries';
 import { createDriverSchema, getDriversQuerySchema, updateDriverSchema } from '@/features/drivers/schema';
 import { sessionMiddleware } from '@/lib/session-middleware';
 
 const app = new Hono()
-  .get('/me/stats', sessionMiddleware, async (ctx) => {
-    const user = ctx.get('user');
-    try {
-      const driver = await getDriverByUserId(user.id);
-      if (!driver) return ctx.json({ error: 'Driver not found' }, 404);
+  .get(
+    '/me/stats',
+    sessionMiddleware,
+    zValidator(
+      'query',
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }),
+    ),
+    async (ctx) => {
+      const user = ctx.get('user');
+      const { startDate } = ctx.req.valid('query');
 
-      const stats = await getDriverStats(driver.id, new Date());
-      return ctx.json({ data: stats });
-    } catch (error) {
-      return ctx.json({ error: 'Failed to fetch stats' }, 500);
-    }
-  })
+      try {
+        const driver = await getDriverByUserId(user.id);
+        if (!driver) return ctx.json({ error: 'Driver not found' }, 404);
+
+        // Use provided date or default to now
+        const date = startDate ? new Date(startDate) : new Date();
+        const stats = await getDriverStats(driver.id, date);
+        return ctx.json({ data: stats });
+      } catch (error) {
+        return ctx.json({ error: 'Failed to fetch stats' }, 500);
+      }
+    },
+  )
   .get('/me/ledger', sessionMiddleware, async (ctx) => {
     const user = ctx.get('user');
     try {
@@ -97,6 +113,36 @@ const app = new Hono()
       } catch (error) {
         console.error('[DRIVER_STATS_ERROR]:', error);
         return ctx.json({ error: 'Failed to fetch driver statistics' }, 500);
+      }
+    },
+  )
+  .get(
+    '/:id/deliveries',
+    sessionMiddleware,
+    zValidator(
+      'query',
+      z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        page: z.coerce.number().int().min(1).default(1),
+        limit: z.coerce.number().int().min(1).max(100).default(10),
+      }),
+    ),
+    async (ctx) => {
+      const { id } = ctx.req.param();
+      const { startDate, endDate, page, limit } = ctx.req.valid('query');
+
+      try {
+        const result = await getDriverDeliveries(id, {
+          page,
+          limit,
+          startDate: startDate ? new Date(startDate) : undefined,
+          endDate: endDate ? new Date(endDate) : undefined,
+        });
+        return ctx.json({ data: result });
+      } catch (error) {
+        console.error('[DRIVER_DELIVERIES_ERROR]:', error);
+        return ctx.json({ error: 'Failed to fetch driver deliveries' }, 500);
       }
     },
   )

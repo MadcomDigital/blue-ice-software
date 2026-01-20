@@ -6,7 +6,7 @@ export default function ExpensesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Expenses</h1>
+          <h1 className="main-heading">Expense Tracker</h1>
           <p className="text-muted-foreground">Manage and track company expenses</p>
         </div>
         <ExpenseForm />

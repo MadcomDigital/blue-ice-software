@@ -53,8 +53,9 @@ const StatCard = ({ label, value, icon, color, href }: StatCardProps) => {
   return content;
 };
 
-export const StatsDashboard = () => {
-  const { data: stats, isLoading, isRefetching } = useGetDriverStats();
+
+export const StatsDashboard = ({ date }: { date?: string }) => {
+  const { data: stats, isLoading, isRefetching } = useGetDriverStats(date);
 
   if (isLoading) return <StatsSkeleton />;
   if (!stats) return null;

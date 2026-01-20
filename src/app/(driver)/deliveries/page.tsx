@@ -79,9 +79,6 @@ function DeliveriesContent() {
 
   return (
     <div className="space-y-6">
-      <StatsDashboard />
-      <DriverLocationTracker />
-
       {/* Date Selector */}
       <div className="flex items-center gap-2">
         <Button
@@ -120,6 +117,8 @@ function DeliveriesContent() {
           </PopoverContent>
         </Popover>
       </div>
+
+      <StatsDashboard date={selectedDate} />
 
       <div className="flex items-center justify-between">
         <div className="flex gap-2">

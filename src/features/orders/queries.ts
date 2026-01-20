@@ -926,6 +926,57 @@ export async function updateOrder(
       });
     }
 
+    // CORRECTION LOGIC FOR COMPLETED ORDERS
+    // Enables drivers/admins to fix mistakes in cash collection after detailed submission
+    if (existingOrder.status === OrderStatus.COMPLETED) {
+      // 1. Handle Cash Collection Correction
+      if (orderData.cashCollected !== undefined) {
+        const oldCash = existingOrder.cashCollected;
+        const newCash = new Prisma.Decimal(orderData.cashCollected);
+
+        if (!oldCash.equals(newCash)) {
+          const diff = newCash.sub(oldCash);
+
+          // Update Customer Balance
+          const updatedCustomer = await tx.customerProfile.update({
+            where: { id: existingOrder.customerId },
+            data: { cashBalance: { increment: diff } },
+          });
+
+          // Update Ledger
+          const paymentLedger = await tx.ledger.findFirst({
+            where: { referenceId: id, description: { contains: 'Payment' } },
+          });
+
+          if (paymentLedger) {
+            await tx.ledger.update({
+              where: { id: paymentLedger.id },
+              data: {
+                amount: newCash,
+                balanceAfter: { increment: diff },
+              },
+            });
+          } else if (newCash.gt(0)) {
+            // Case: Previously 0/Unpaid, now Paid. Create new entry.
+            // We use the updated customer balance as the snapshot
+            await tx.ledger.create({
+              data: {
+                customerId: existingOrder.customerId,
+                referenceId: id,
+                amount: newCash,
+                description: `Order #${existingOrder.readableId} Payment`,
+                balanceAfter: updatedCustomer.cashBalance,
+              },
+            });
+          }
+        }
+      }
+
+      // Note: We are currently NOT handling stock corrections for completed orders here.
+      // If items are changed in a completed order, stock will be out of sync.
+      // Recommendation: For item changes, Cancel and Recreate.
+    }
+
     // Business Logic: Handle Completion
     if (orderData.status === OrderStatus.COMPLETED && existingOrder.status !== OrderStatus.COMPLETED) {
       const updatedOrder = await tx.order.findUnique({ where: { id } });

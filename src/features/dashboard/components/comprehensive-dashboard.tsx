@@ -140,8 +140,8 @@ export function ComprehensiveDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="bg-gradient-to-r from-blue-600 to-teal-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent dark:from-blue-400 dark:to-teal-300">
-            Overview
+          <h1 className="main-heading">
+            Dashboard Overview
           </h1>
           <p className="font-medium text-muted-foreground">Business Intelligence & Analytics</p>
         </div>

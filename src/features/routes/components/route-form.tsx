@@ -36,7 +36,14 @@ export const RouteForm = ({ routeId, onCancel }: RouteFormProps) => {
   const { data: driversData, isLoading: isLoadingDrivers } = useGetDrivers({ limit: 100 });
 
   const isPending = isCreating || isUpdating;
-  const drivers = driversData?.drivers || [];
+  const driversRaw = driversData?.drivers || [];
+
+  // Ensure the current assigned driver is in the list (for Edit mode)
+  // This handles cases where the assigned driver might not be in the first 100 results
+  const drivers = [...driversRaw];
+  if (route?.defaultDriver && !drivers.find((d: any) => d.id === route.defaultDriverId)) {
+    drivers.unshift(route.defaultDriver as any);
+  }
 
   const form = useForm<CreateRouteInput>({
     resolver: zodResolver(createRouteSchema),
@@ -50,10 +57,13 @@ export const RouteForm = ({ routeId, onCancel }: RouteFormProps) => {
 
   useEffect(() => {
     if (route) {
+      // Validated ID or null (treat empty string as null)
+      const validDriverId = route.defaultDriverId && route.defaultDriverId.trim() !== '' ? route.defaultDriverId : null;
+
       form.reset({
         name: route.name,
         description: route.description || '',
-        defaultDriverId: route.defaultDriverId || null,
+        defaultDriverId: validDriverId,
       });
     }
   }, [route, form]);
@@ -91,10 +101,10 @@ export const RouteForm = ({ routeId, onCancel }: RouteFormProps) => {
   if (isEdit && !route) return <PageError message="Route not found" />;
 
   return (
-    <Card className="">
-      <CardHeader>
+    <Card className="pt-2">
+      {/* <CardHeader>
         <CardTitle>{isEdit ? 'Edit Route' : 'Create New Route'}</CardTitle>
-      </CardHeader>
+      </CardHeader> */}
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -133,6 +143,7 @@ export const RouteForm = ({ routeId, onCancel }: RouteFormProps) => {
                 <FormItem>
                   <FormLabel>Default Driver (Optional)</FormLabel>
                   <Select
+                    key={field.value || 'unassigned'}
                     onValueChange={(value) => field.onChange(value === 'unassigned' ? null : value)}
                     defaultValue={field.value || 'unassigned'}
                     value={field.value || 'unassigned'}

@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 export const siteConfig: Metadata = {
   title: 'Blue Ice',
@@ -11,7 +11,6 @@ export const siteConfig: Metadata = {
     ],
     apple: [{ url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
   },
-  themeColor: '#2563eb',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -20,10 +19,12 @@ export const siteConfig: Metadata = {
   formatDetection: {
     telephone: false, // Prevent auto-detection of phone numbers
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false, // Prevent zooming for app-like feel
-  },
+} as const;
+
+export const siteViewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // Prevent zooming for app-like feel
+  themeColor: '#2563eb',
 } as const;

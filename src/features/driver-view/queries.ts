@@ -1,6 +1,7 @@
 import { OrderStatus, PaymentMethod } from '@prisma/client';
 
 import { db } from '@/lib/db';
+import { getPendingCashFromPreviousDays } from '@/features/cash-management/queries';
 
 export async function getDriverStats(driverId: string, date: Date) {
   const startOfDay = new Date(date);
@@ -26,6 +27,7 @@ export async function getDriverStats(driverId: string, date: Date) {
     prepaidOrders,
     expenseData,
     bottleData,
+    pendingFromPreviousDays,
   ] = await Promise.all([
     // Order counts
     db.order.count({ where: { driverId, scheduledDate: { gte: startOfDay, lte: endOfDay } } }),
@@ -84,6 +86,9 @@ export async function getDriverStats(driverId: string, date: Date) {
         damagedReturned: true,
       },
     }),
+
+    // Get pending cash from previous days (cash collected but not yet handed over)
+    getPendingCashFromPreviousDays(driverId),
   ]);
 
   const cashCollected = parseFloat(cashOrders._sum.cashCollected?.toString() || '0');
@@ -96,6 +101,11 @@ export async function getDriverStats(driverId: string, date: Date) {
   const emptyTaken = bottleData._sum.emptyTaken || 0;
   const damagedReturned = bottleData._sum.damagedReturned || 0;
 
+  // Calculate total cash including pending from previous days
+  const todayNetCash = cashCollected - expenses;
+  const pendingCashFromPreviousDays = parseFloat(pendingFromPreviousDays.netPendingCash);
+  const totalPendingCash = todayNetCash + pendingCashFromPreviousDays;
+
   return {
     // Order breakdown
     totalOrders,
@@ -104,14 +114,27 @@ export async function getDriverStats(driverId: string, date: Date) {
     cancelledOrders,
     rescheduledOrders,
 
-    // Financial breakdown
-    cashCollected: (cashCollected - expenses).toFixed(2),
+    // Financial breakdown (today only)
+    cashCollected: todayNetCash.toFixed(2),
     grossCash: cashCollected.toFixed(2),
     onlineCollected: onlineCollected.toFixed(2),
     creditGiven: creditGiven.toFixed(2),
     prepaidUsed: prepaidUsed.toFixed(2),
     expenses: expenses.toFixed(2),
-    netCash: (cashCollected - expenses).toFixed(2),
+    netCash: todayNetCash.toFixed(2),
+
+    // Pending cash from previous days (NEW)
+    pendingFromPreviousDays: {
+      totalPendingCash: pendingFromPreviousDays.totalPendingCash,
+      totalPendingExpenses: pendingFromPreviousDays.totalPendingExpenses,
+      netPendingCash: pendingFromPreviousDays.netPendingCash,
+      pendingDaysCount: pendingFromPreviousDays.pendingDays.length,
+      pendingDays: pendingFromPreviousDays.pendingDays,
+      hasPendingCash: pendingCashFromPreviousDays > 0,
+    },
+
+    // Total cash to handover (today + previous days pending)
+    totalPendingCash: totalPendingCash.toFixed(2),
 
     // Order counts by payment method
     cashOrdersCount: cashOrders._count || 0,

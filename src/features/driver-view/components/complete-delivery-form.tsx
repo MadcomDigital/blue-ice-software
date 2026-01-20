@@ -32,7 +32,7 @@ export const CompleteDeliveryForm = ({ orderId, onSuccess }: CompleteDeliveryFor
   const form = useForm({
     defaultValues: {
       cashCollected: 0,
-      paymentMethod: PaymentMethod.CASH,
+      paymentMethod: PaymentMethod.CASH as PaymentMethod,
       items: [] as any[],
     },
   });
@@ -44,15 +44,26 @@ export const CompleteDeliveryForm = ({ orderId, onSuccess }: CompleteDeliveryFor
 
   useEffect(() => {
     if (order) {
+      const isCompleted = order.status === 'COMPLETED';
+
       form.reset({
-        cashCollected: Number(order.totalAmount),
-        paymentMethod: PaymentMethod.CASH,
+        // If completed, use the actual collected cash stored in order
+        cashCollected: isCompleted && order.cashCollected != null
+          ? Number(order.cashCollected)
+          : Number(order.totalAmount),
+
+        paymentMethod: order.paymentMethod || PaymentMethod.CASH,
+
         items: order.orderItems.map((item: any) => ({
           productId: item.productId,
-          productName: item.product.name, // For display
+          productName: item.product.name,
           quantity: item.quantity,
-          filledGiven: item.quantity, // Default to ordered qty
-          emptyTaken: item.quantity, // Default to ordered qty (assumption: replacement)
+
+          // For completed orders, use the stored values. 
+          // For new orders, default to the ordered quantity.
+          filledGiven: isCompleted ? (item.filledGiven ?? item.quantity) : item.quantity,
+          emptyTaken: isCompleted ? (item.emptyTaken ?? item.quantity) : item.quantity,
+          damagedReturned: item.damagedReturned ?? 0,
         })),
       });
     }
@@ -271,10 +282,10 @@ export const CompleteDeliveryForm = ({ orderId, onSuccess }: CompleteDeliveryFor
             type="submit"
             size="lg"
             className="h-16 w-full text-lg font-semibold"
-            disabled={isPending || order.status === 'COMPLETED'}
+            disabled={isPending}
           >
             {isPending ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Check className="mr-2 h-5 w-5" />}
-            {order.status === 'COMPLETED' ? 'Already Completed' : 'Confirm Delivery'}
+            {order.status === 'COMPLETED' ? 'Update Delivery' : 'Confirm Delivery'}
           </Button>
         </form>
       </Form>

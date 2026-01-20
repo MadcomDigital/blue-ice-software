@@ -46,12 +46,12 @@ export async function getDrivers(params: { search?: string; page: number; limit:
 
   const where: Prisma.DriverProfileWhereInput = search
     ? {
-        OR: [
-          { user: { name: { contains: search, mode: 'insensitive' } } },
-          { user: { phoneNumber: { contains: search } } },
-          { vehicleNo: { contains: search, mode: 'insensitive' } },
-        ],
-      }
+      OR: [
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { user: { phoneNumber: { contains: search } } },
+        { vehicleNo: { contains: search, mode: 'insensitive' } },
+      ],
+    }
     : {};
 
   const startOfDay = new Date();
@@ -439,6 +439,85 @@ export async function getDriverDetailStats(driverId: string, params?: { startDat
     today: {
       deliveries: todayStats._count.id,
       cashCollected: todayStats._sum.cashCollected?.toString() || '0',
+    },
+  };
+}
+
+export async function getDriverDeliveries(
+  driverId: string,
+  params: {
+    page: number;
+    limit: number;
+    startDate?: Date;
+    endDate?: Date;
+  }
+) {
+  const { page, limit, startDate, endDate } = params;
+  const skip = (page - 1) * limit;
+
+  // Default to current month if no dates provided
+  const start = startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const end = endDate || new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const where: Prisma.OrderWhereInput = {
+    driverId,
+    status: OrderStatus.COMPLETED,
+    scheduledDate: { gte: start, lte: end },
+  };
+
+  const [orders, total] = await Promise.all([
+    db.order.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        customer: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                phoneNumber: true,
+              },
+            },
+          },
+        },
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { deliveredAt: 'desc' },
+    }),
+    db.order.count({ where }),
+  ]);
+
+  return {
+    deliveries: orders.map((order) => ({
+      id: order.id,
+      readableId: order.readableId,
+      customerName: order.customer.user.name,
+      customerPhone: order.customer.user.phoneNumber,
+      totalAmount: order.totalAmount.toString(),
+      cashCollected: order.cashCollected.toString(),
+      deliveredAt: order.deliveredAt,
+      items: order.orderItems.map((item) => ({
+        productName: item.product.name,
+        quantity: item.quantity,
+        filledGiven: item.filledGiven,
+        emptyTaken: item.emptyTaken,
+      })),
+    })),
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     },
   };
 }

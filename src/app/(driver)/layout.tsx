@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { ClipboardList, User, Wallet } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -42,8 +43,12 @@ export default function DriverLayout({ children }: DriverLayoutProps) {
       </header>
       <main className="container mx-auto max-w-md px-4 py-6 pb-24">
         {children}
-        <CompleteDeliveryModal />
-        <InvoiceModal />
+        <Suspense fallback={null}>
+          <CompleteDeliveryModal />
+        </Suspense>
+        <Suspense fallback={null}>
+          <InvoiceModal />
+        </Suspense>
       </main>
 
       {/* Bottom Navigation */}
@@ -51,3 +56,5 @@ export default function DriverLayout({ children }: DriverLayoutProps) {
     </div>
   );
 }
+
+

@@ -4,12 +4,13 @@ import { ClipboardList, User, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { LocationTrackingModal } from '@/features/tracking/components/location-tracking-modal';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/deliveries', icon: ClipboardList, label: 'Today' },
   { href: '/financials', icon: Wallet, label: 'Money' },
-  { href: '/profile', icon: User, label: 'Me' },
+  // { href: '/profile', icon: User, label: 'Me' }, // Replaced by Location Tracking
 ];
 
 export const BottomNav = () => {
@@ -39,6 +40,9 @@ export const BottomNav = () => {
             </Link>
           );
         })}
+
+        {/* Location Tracking Modal Trigger */}
+        <LocationTrackingModal />
       </div>
     </nav>
   );

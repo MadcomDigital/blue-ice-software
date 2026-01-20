@@ -31,7 +31,148 @@ export async function calculateExpectedCash(driverId: string, date: Date) {
 }
 
 /**
+ * Get all dates that have unhanded cash (completed cash orders but no verified handover)
+ * This is critical for tracking pending cash from previous days
+ */
+export async function getPendingCashDates(driverId: string): Promise<Date[]> {
+  // Get all dates with completed cash orders
+  const ordersWithCash = await db.order.findMany({
+    where: {
+      driverId,
+      status: OrderStatus.COMPLETED,
+      paymentMethod: PaymentMethod.CASH,
+    },
+    select: {
+      scheduledDate: true,
+    },
+    distinct: ['scheduledDate'],
+    orderBy: { scheduledDate: 'asc' },
+  });
+
+  // Get all dates with verified handovers
+  const verifiedHandovers = await db.cashHandover.findMany({
+    where: {
+      driverId,
+      status: CashHandoverStatus.VERIFIED,
+    },
+    select: {
+      date: true,
+    },
+  });
+
+  const verifiedDates = new Set(verifiedHandovers.map((h) => h.date.toISOString().split('T')[0]));
+
+  // Return dates that have cash orders but no verified handover
+  return ordersWithCash
+    .map((o) => o.scheduledDate)
+    .filter((date) => !verifiedDates.has(date.toISOString().split('T')[0]));
+}
+
+/**
+ * Get pending (unhanded-over) cash from previous days
+ * Returns breakdown by date and total
+ */
+export async function getPendingCashFromPreviousDays(driverId: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get all dates with unhanded cash before today
+  const pendingDates = await getPendingCashDates(driverId);
+  const previousDates = pendingDates.filter((date) => {
+    const dateOnly = new Date(date);
+    dateOnly.setHours(0, 0, 0, 0);
+    return dateOnly < today;
+  });
+
+  if (previousDates.length === 0) {
+    return {
+      totalPendingCash: '0',
+      totalPendingExpenses: '0',
+      netPendingCash: '0',
+      pendingDays: [],
+    };
+  }
+
+  // Get cash and expenses for each pending date
+  const pendingDays = await Promise.all(
+    previousDates.map(async (date) => {
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const [cashData, expenseData, handover] = await Promise.all([
+        // Cash collected on this date
+        db.order.aggregate({
+          where: {
+            driverId,
+            scheduledDate: { gte: startOfDay, lte: endOfDay },
+            status: OrderStatus.COMPLETED,
+            paymentMethod: PaymentMethod.CASH,
+          },
+          _sum: { cashCollected: true },
+          _count: { id: true },
+        }),
+
+        // Expenses for this date (paid from cash on hand)
+        db.expense.aggregate({
+          where: {
+            driverId,
+            date: { gte: startOfDay, lte: endOfDay },
+            paymentMethod: 'CASH_ON_HAND',
+            status: { not: 'REJECTED' },
+          },
+          _sum: { amount: true },
+        }),
+
+        // Check if there's a pending (unverified) handover
+        db.cashHandover.findUnique({
+          where: {
+            driverId_date: {
+              driverId,
+              date: new Date(startOfDay.toDateString()),
+            },
+          },
+          select: {
+            id: true,
+            status: true,
+            actualCash: true,
+          },
+        }),
+      ]);
+
+      const grossCash = parseFloat(cashData._sum.cashCollected?.toString() || '0');
+      const expenses = parseFloat(expenseData._sum.amount?.toString() || '0');
+      const netCash = grossCash - expenses;
+
+      return {
+        date: startOfDay,
+        grossCash: grossCash.toFixed(2),
+        expenses: expenses.toFixed(2),
+        netCash: netCash.toFixed(2),
+        orderCount: cashData._count.id,
+        hasPendingHandover: handover?.status === CashHandoverStatus.PENDING,
+        handoverId: handover?.id || null,
+      };
+    })
+  );
+
+  // Calculate totals
+  const totalPendingCash = pendingDays.reduce((sum, day) => sum + parseFloat(day.grossCash), 0);
+  const totalPendingExpenses = pendingDays.reduce((sum, day) => sum + parseFloat(day.expenses), 0);
+  const netPendingCash = totalPendingCash - totalPendingExpenses;
+
+  return {
+    totalPendingCash: totalPendingCash.toFixed(2),
+    totalPendingExpenses: totalPendingExpenses.toFixed(2),
+    netPendingCash: netPendingCash.toFixed(2),
+    pendingDays: pendingDays.filter((day) => parseFloat(day.grossCash) > 0), // Only include days with actual cash
+  };
+}
+
+/**
  * Get driver's day summary for cash handover
+ * Includes today's stats AND pending cash from previous days (not yet handed over)
  */
 export async function getDriverDaySummary(driverId: string, date: Date) {
   const startOfDay = new Date(date);
@@ -39,7 +180,7 @@ export async function getDriverDaySummary(driverId: string, date: Date) {
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 
-  const [ordersData, cashData, bottleData] = await Promise.all([
+  const [ordersData, cashData, bottleData, pendingFromPreviousDays] = await Promise.all([
     // Order counts
     db.order.groupBy({
       by: ['status'],
@@ -88,6 +229,9 @@ export async function getDriverDaySummary(driverId: string, date: Date) {
         emptyTaken: true,
       },
     }),
+
+    // Get pending cash from previous days (critical for tracking unhanded cash)
+    getPendingCashFromPreviousDays(driverId),
   ]);
 
   const totalOrders = ordersData.reduce((acc, curr) => acc + curr._count.id, 0);
@@ -107,15 +251,20 @@ export async function getDriverDaySummary(driverId: string, date: Date) {
 
   const expensesAmount = parseFloat(expenses._sum.amount?.toString() || '0');
   const grossCash = cashData.reduce((acc, order) => acc + parseFloat(order.cashCollected.toString()), 0);
-  const expectedCash = grossCash - expensesAmount;
+  const todayExpectedCash = grossCash - expensesAmount;
+
+  // Calculate total expected cash including pending from previous days
+  const pendingCashFromPreviousDays = parseFloat(pendingFromPreviousDays.netPendingCash);
+  const totalExpectedCash = todayExpectedCash + pendingCashFromPreviousDays;
 
   return {
+    // Today's stats
     totalOrders,
     completedOrders,
     cashOrders,
     grossCash: grossCash.toFixed(2),
     expensesAmount: expensesAmount.toFixed(2),
-    expectedCash: expectedCash.toFixed(2),
+    expectedCash: todayExpectedCash.toFixed(2), // Today's expected (for backward compatibility)
     bottlesGiven: bottleData._sum.filledGiven || 0,
     bottlesTaken: bottleData._sum.emptyTaken || 0,
     ordersPaidInCash: cashData.map((order) => ({
@@ -124,12 +273,21 @@ export async function getDriverDaySummary(driverId: string, date: Date) {
       customerName: order.customer.user.name,
       amount: order.cashCollected.toString(),
     })),
+
+    // Pending cash from previous days (NEW)
+    pendingFromPreviousDays: {
+      totalPendingCash: pendingFromPreviousDays.totalPendingCash,
+      totalPendingExpenses: pendingFromPreviousDays.totalPendingExpenses,
+      netPendingCash: pendingFromPreviousDays.netPendingCash,
+      pendingDays: pendingFromPreviousDays.pendingDays,
+      hasPendingCash: pendingCashFromPreviousDays > 0,
+    },
+
+    // Total cash to handover (today + previous days pending)
+    totalExpectedCash: totalExpectedCash.toFixed(2),
   };
 }
 
-/**
- * Submit cash handover (Driver action)
- */
 export async function submitCashHandover(data: {
   driverId: string;
   date: Date;
@@ -140,9 +298,16 @@ export async function submitCashHandover(data: {
 }) {
   const { driverId, date, actualCash, driverNotes, shiftStart, shiftEnd } = data;
 
-  // Get day summary
-  const summary = await getDriverDaySummary(driverId, date);
-  const expectedCash = parseFloat(summary.expectedCash);
+  // Normalize date to YYYY-MM-DD UTC Midnight strictly to prevent duplicates due to timezone shifts
+  // This ensures that "2026-01-19T00:00:00Z" and "Mon Jan 19 2026" (Local) are treated as the same business day
+  const dateStr = date.toISOString().split('T')[0];
+  const normalizedDate = new Date(dateStr);
+
+  // Get day summary (includes pending cash from previous days)
+  const summary = await getDriverDaySummary(driverId, normalizedDate);
+
+  // Use totalExpectedCash which includes today's cash + pending from previous days
+  const expectedCash = parseFloat(summary.totalExpectedCash);
   const discrepancy = expectedCash - actualCash;
 
   // Check if handover already exists
@@ -150,7 +315,7 @@ export async function submitCashHandover(data: {
     where: {
       driverId_date: {
         driverId,
-        date: new Date(date.toDateString()),
+        date: normalizedDate,
       },
     },
   });
@@ -196,7 +361,7 @@ export async function submitCashHandover(data: {
   return await db.cashHandover.create({
     data: {
       driverId,
-      date: new Date(date.toDateString()),
+      date: normalizedDate,
       expectedCash,
       actualCash,
       discrepancy,
@@ -248,11 +413,11 @@ export async function getCashHandovers(params: {
     ...(driverId && { driverId }),
     ...(startDate &&
       endDate && {
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      }),
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+    }),
   };
 
   const [handovers, total] = await Promise.all([
@@ -358,6 +523,8 @@ export async function getCashHandover(id: string) {
 
 /**
  * Verify cash handover (Admin action)
+ * IMPORTANT: This now handles cumulative cash from previous days.
+ * When a handover is verified, it settles all pending cash up to that date.
  */
 export async function verifyCashHandover(data: {
   id: string;
@@ -377,46 +544,78 @@ export async function verifyCashHandover(data: {
 
   return await db.$transaction(async (tx) => {
     // 0. Re-calculate Expected Cash (Crucial Step)
-    // We must ensure that any expenses added/approved AFTER the driver submitted the handover
-    // are correctly deducted from the expected cash before we verify.
-    // Otherwise, legitimate expenses (e.g. Fuel 200) will show up as Cash Shortage.
+    // The expectedCash stored in the handover already includes pending cash from previous days.
+    // However, we need to recalculate in case expenses were added/approved AFTER submission.
 
-    const startOfDay = new Date(handover.date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(handover.date);
-    endOfDay.setHours(23, 59, 59, 999);
+    const handoverDate = new Date(handover.date);
+    handoverDate.setHours(0, 0, 0, 0);
 
-    // Get Gross Cash (Total collected from orders)
-    const cashOrders = await tx.order.aggregate({
+    // Get all dates with pending cash (no verified handover) up to and including handover date
+    const ordersWithCash = await tx.order.findMany({
       where: {
         driverId: handover.driverId,
-        scheduledDate: { gte: startOfDay, lte: endOfDay },
         status: OrderStatus.COMPLETED,
         paymentMethod: PaymentMethod.CASH,
+        scheduledDate: { lte: handoverDate },
       },
-      _sum: {
+      select: {
+        scheduledDate: true,
         cashCollected: true,
       },
     });
-    const grossCash = new Prisma.Decimal(cashOrders._sum.cashCollected?.toString() || '0');
 
-    // Get Total Expenses (Paid from Cash on Hand)
-    // We include PENDING expenses here because if the Admin is verifying the Cash Handover,
-    // they are implicitly accepting the "Net" cash. If an expense is fake, they should REJECT the expense first,
-    // which would remove it from this sum (status != REJECTED).
-    const expenses = await tx.expense.aggregate({
+    // Get verified handover dates (to exclude from calculation)
+    const verifiedHandovers = await tx.cashHandover.findMany({
       where: {
         driverId: handover.driverId,
-        date: { gte: startOfDay, lte: endOfDay },
-        paymentMethod: 'CASH_ON_HAND',
-        status: { not: 'REJECTED' },
+        status: CashHandoverStatus.VERIFIED,
+        date: { lt: handoverDate },
       },
-      _sum: { amount: true },
+      select: {
+        date: true,
+      },
     });
-    const expensesAmount = new Prisma.Decimal(expenses._sum.amount?.toString() || '0');
 
-    // Calculate True Expected Cash
-    const trueExpectedCash = grossCash.sub(expensesAmount);
+    const verifiedDates = new Set(verifiedHandovers.map((h) => h.date.toISOString().split('T')[0]));
+
+    // Calculate total pending cash from all unverified dates
+    let totalPendingGrossCash = new Prisma.Decimal(0);
+    const pendingDatesSet = new Set<string>();
+
+    ordersWithCash.forEach((order) => {
+      const dateStr = order.scheduledDate.toISOString().split('T')[0];
+      if (!verifiedDates.has(dateStr)) {
+        totalPendingGrossCash = totalPendingGrossCash.add(order.cashCollected);
+        pendingDatesSet.add(dateStr);
+      }
+    });
+
+    // Get total expenses from all pending dates
+    const pendingDatesArray = Array.from(pendingDatesSet);
+    let totalExpenses = new Prisma.Decimal(0);
+
+    for (const dateStr of pendingDatesArray) {
+      const date = new Date(dateStr);
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const dayExpenses = await tx.expense.aggregate({
+        where: {
+          driverId: handover.driverId,
+          date: { gte: startOfDay, lte: endOfDay },
+          paymentMethod: 'CASH_ON_HAND',
+          status: { not: 'REJECTED' },
+        },
+        _sum: { amount: true },
+      });
+
+      totalExpenses = totalExpenses.add(new Prisma.Decimal(dayExpenses._sum.amount?.toString() || '0'));
+    }
+
+    // Calculate True Expected Cash (cumulative)
+    const trueExpectedCash = totalPendingGrossCash.sub(totalExpenses);
 
     // Calculate True Discrepancy
     // Discrepancy = Expected - Actual
@@ -457,7 +656,7 @@ export async function verifyCashHandover(data: {
     // Negative Discrepancy (Expected < Actual) = Excess = Driver Paid Extra (Credit)
 
     if (status === CashHandoverStatus.VERIFIED || status === CashHandoverStatus.ADJUSTED) {
-      let finalDiscrepancy = updatedHandover.discrepancy;
+      const finalDiscrepancy = updatedHandover.discrepancy;
 
       // If Shortage (Discrepancy > 0) -> Driver Owes Company -> Debit
       if (finalDiscrepancy.gt(0)) {
@@ -483,6 +682,88 @@ export async function verifyCashHandover(data: {
             balanceAfter: new Prisma.Decimal(0), // TODO: Fetch previous balance + this.
           },
         });
+      }
+
+      // 3. Create verified handover records for previous pending days
+      // This ensures that once cash is handed over, previous days don't show as pending anymore
+      const handoverDateStr = handoverDate.toISOString().split('T')[0];
+      for (const dateStr of pendingDatesArray) {
+        // Skip the current handover date (already updated above)
+        if (dateStr === handoverDateStr) continue;
+
+        const previousDate = new Date(dateStr);
+
+        // Check if handover record already exists for this date
+        const existingHandover = await tx.cashHandover.findUnique({
+          where: {
+            driverId_date: {
+              driverId: handover.driverId,
+              date: previousDate,
+            },
+          },
+        });
+
+        if (existingHandover) {
+          // Update existing pending handover to verified (settled via main handover)
+          if (existingHandover.status === CashHandoverStatus.PENDING) {
+            await tx.cashHandover.update({
+              where: { id: existingHandover.id },
+              data: {
+                status: CashHandoverStatus.VERIFIED,
+                verifiedBy,
+                verifiedAt: new Date(),
+                adminNotes: `Settled via handover on ${handoverDate.toDateString()}`,
+              },
+            });
+          }
+        } else {
+          // Calculate the day's expected cash for record keeping
+          const dayStartOfDay = new Date(previousDate);
+          dayStartOfDay.setHours(0, 0, 0, 0);
+          const dayEndOfDay = new Date(previousDate);
+          dayEndOfDay.setHours(23, 59, 59, 999);
+
+          const dayCashOrders = await tx.order.aggregate({
+            where: {
+              driverId: handover.driverId,
+              scheduledDate: { gte: dayStartOfDay, lte: dayEndOfDay },
+              status: OrderStatus.COMPLETED,
+              paymentMethod: PaymentMethod.CASH,
+            },
+            _sum: { cashCollected: true },
+            _count: { id: true },
+          });
+
+          const dayExpenses = await tx.expense.aggregate({
+            where: {
+              driverId: handover.driverId,
+              date: { gte: dayStartOfDay, lte: dayEndOfDay },
+              paymentMethod: 'CASH_ON_HAND',
+              status: { not: 'REJECTED' },
+            },
+            _sum: { amount: true },
+          });
+
+          const dayGrossCash = parseFloat(dayCashOrders._sum.cashCollected?.toString() || '0');
+          const dayExpensesAmount = parseFloat(dayExpenses._sum.amount?.toString() || '0');
+          const dayNetCash = dayGrossCash - dayExpensesAmount;
+
+          // Create a verified handover record for the previous day
+          await tx.cashHandover.create({
+            data: {
+              driverId: handover.driverId,
+              date: previousDate,
+              expectedCash: dayNetCash,
+              actualCash: dayNetCash, // Assume full amount was included in main handover
+              discrepancy: 0,
+              status: CashHandoverStatus.VERIFIED,
+              verifiedBy,
+              verifiedAt: new Date(),
+              adminNotes: `Settled via handover on ${handoverDate.toDateString()}`,
+              cashOrders: dayCashOrders._count.id,
+            },
+          });
+        }
       }
     }
 
@@ -588,6 +869,202 @@ export async function getDriverHandoverHistory(driverId: string, limit = 10) {
       },
     },
   });
+}
+
+/**
+ * Get comprehensive driver financial history
+ * Includes: cash handovers, expenses, and daily cash collection summaries
+ */
+export async function getDriverFinancialHistory(
+  driverId: string,
+  params: {
+    startDate?: Date;
+    endDate?: Date;
+    page?: number;
+    limit?: number;
+  }
+) {
+  const { startDate, endDate, page = 1, limit = 50 } = params;
+
+  // Default to last 30 days if no dates provided
+  const end = endDate || new Date();
+  const start = startDate || new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const startOfRange = new Date(start);
+  startOfRange.setHours(0, 0, 0, 0);
+  const endOfRange = new Date(end);
+  endOfRange.setHours(23, 59, 59, 999);
+
+  const skip = (page - 1) * limit;
+
+  // Fetch all financial data in parallel
+  const [handovers, expenses, dailyCashCollections] = await Promise.all([
+    // Cash handovers in date range
+    db.cashHandover.findMany({
+      where: {
+        driverId,
+        date: { gte: startOfRange, lte: endOfRange },
+      },
+      orderBy: { date: 'desc' },
+      select: {
+        id: true,
+        date: true,
+        expectedCash: true,
+        actualCash: true,
+        discrepancy: true,
+        status: true,
+        driverNotes: true,
+        verifiedAt: true,
+        submittedAt: true,
+      },
+    }),
+
+    // Expenses in date range
+    db.expense.findMany({
+      where: {
+        driverId,
+        date: { gte: startOfRange, lte: endOfRange },
+      },
+      orderBy: { date: 'desc' },
+      select: {
+        id: true,
+        date: true,
+        amount: true,
+        category: true,
+        description: true,
+        status: true,
+        paymentMethod: true,
+        createdAt: true,
+      },
+    }),
+
+    // Daily cash collection grouped by date
+    db.order.groupBy({
+      by: ['scheduledDate'],
+      where: {
+        driverId,
+        scheduledDate: { gte: startOfRange, lte: endOfRange },
+        status: OrderStatus.COMPLETED,
+        paymentMethod: PaymentMethod.CASH,
+      },
+      _sum: {
+        cashCollected: true,
+      },
+      _count: {
+        id: true,
+      },
+      orderBy: {
+        scheduledDate: 'desc',
+      },
+    }),
+  ]);
+
+  // Create a unified timeline of events
+  type HistoryEvent = {
+    id: string;
+    type: 'handover' | 'expense' | 'collection';
+    date: Date;
+    amount: string;
+    status?: string;
+    details: Record<string, any>;
+  };
+
+  const events: HistoryEvent[] = [];
+
+  // Add handovers
+  handovers.forEach((h) => {
+    events.push({
+      id: h.id,
+      type: 'handover',
+      date: h.date,
+      amount: h.actualCash.toString(),
+      status: h.status,
+      details: {
+        expectedCash: h.expectedCash.toString(),
+        actualCash: h.actualCash.toString(),
+        discrepancy: h.discrepancy.toString(),
+        driverNotes: h.driverNotes,
+        verifiedAt: h.verifiedAt,
+        submittedAt: h.submittedAt,
+      },
+    });
+  });
+
+  // Add expenses
+  expenses.forEach((e) => {
+    events.push({
+      id: e.id,
+      type: 'expense',
+      date: e.date,
+      amount: `-${e.amount.toString()}`, // Negative for expenses
+      status: e.status,
+      details: {
+        category: e.category,
+        description: e.description,
+        paymentMethod: e.paymentMethod,
+      },
+    });
+  });
+
+  // Add daily collections (only for days without handover to avoid duplication)
+  const handoverDates = new Set(handovers.map((h) => h.date.toISOString().split('T')[0]));
+  dailyCashCollections.forEach((c) => {
+    const dateStr = c.scheduledDate.toISOString().split('T')[0];
+    if (!handoverDates.has(dateStr)) {
+      events.push({
+        id: `collection-${dateStr}`,
+        type: 'collection',
+        date: c.scheduledDate,
+        amount: c._sum.cashCollected?.toString() || '0',
+        details: {
+          orderCount: c._count.id,
+          hasHandover: false,
+        },
+      });
+    }
+  });
+
+  // Sort by date descending
+  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Apply pagination
+  const paginatedEvents = events.slice(skip, skip + limit);
+
+  // Calculate summary statistics
+  const totalCashCollected = dailyCashCollections.reduce(
+    (sum, c) => sum + parseFloat(c._sum.cashCollected?.toString() || '0'),
+    0
+  );
+  const totalExpensesAmount = expenses
+    .filter((e) => e.status !== 'REJECTED')
+    .reduce((sum, e) => sum + parseFloat(e.amount.toString()), 0);
+  const totalHandedOver = handovers
+    .filter((h) => h.status === 'VERIFIED')
+    .reduce((sum, h) => sum + parseFloat(h.actualCash.toString()), 0);
+  const pendingHandovers = handovers.filter((h) => h.status === 'PENDING').length;
+
+  return {
+    events: paginatedEvents,
+    summary: {
+      totalCashCollected: totalCashCollected.toFixed(2),
+      totalExpenses: totalExpensesAmount.toFixed(2),
+      totalHandedOver: totalHandedOver.toFixed(2),
+      netCash: (totalCashCollected - totalExpensesAmount).toFixed(2),
+      pendingHandovers,
+      handoverCount: handovers.length,
+      expenseCount: expenses.length,
+    },
+    pagination: {
+      total: events.length,
+      page,
+      limit,
+      totalPages: Math.ceil(events.length / limit),
+    },
+    dateRange: {
+      start: startOfRange,
+      end: endOfRange,
+    },
+  };
 }
 
 /**

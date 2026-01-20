@@ -9,18 +9,42 @@ import { NotificationSheet } from '@/features/notifications/components/notificat
 import { MobileSidebar } from './mobile-sidebar';
 import { ModeToggle } from './toggle-btn';
 
-const pathnameMap = {
-  tasks: {
-    title: 'My Tasks',
-    description: 'View all of your tasks here.',
+const pathnameMap: Record<string, { title: string; description: string }> = {
+  dashboard: {
+    title: 'Dashboard',
+    description: 'Overview of your business performance.',
   },
-  projects: {
-    title: 'My Project',
-    description: 'View tasks of your project here.',
+  drivers: {
+    title: 'Drivers',
+    description: 'Manage your fleet and driver details.',
   },
-  users: {
-    title: 'All Users',
-    description: 'View All users here.',
+  routes: {
+    title: 'Routes',
+    description: 'Manage delivery routes and assignments.',
+  },
+  customers: {
+    title: 'Customers',
+    description: 'View and manage customer profiles.',
+  },
+  orders: {
+    title: 'Orders',
+    description: 'Track and manage customer orders.',
+  },
+  'cash-management': {
+    title: 'Cash Management',
+    description: 'Track cash handovers and discrepancies.',
+  },
+  expenses: {
+    title: 'Expenses',
+    description: 'Manage operational expenses.',
+  },
+  inventory: {
+    title: 'Inventory',
+    description: 'Monitor product stock and inventory.',
+  },
+  settings: {
+    title: 'Settings',
+    description: 'Manage application settings.',
   },
 };
 
@@ -32,7 +56,7 @@ const defaultMap = {
 export const Navbar = () => {
   const pathname = usePathname();
   const pathnameParts = pathname.split('/');
-  const pathnameKey = pathnameParts[3] as keyof typeof pathnameMap;
+  const pathnameKey = pathnameParts[1] || 'dashboard';
 
   const { title, description } = pathnameMap[pathnameKey] || defaultMap;
 

@@ -186,12 +186,12 @@ function CashHandoverDetailContent() {
 
       {/* Cash Summary */}
       {hasUnverifiedExpenses && (
-        <Card className="mb-6 border-yellow-200 bg-yellow-50/50">
+        <Card className="mb-6 border-yellow-200 bg-yellow-50/50 dark:border-yellow-800 dark:bg-yellow-900/20">
           <CardContent className="flex items-center gap-4 p-4">
             <AlertCircle className="h-6 w-6 text-yellow-600" />
             <div>
-              <h3 className="font-semibold text-yellow-900">Unverified Expenses Detected</h3>
-              <p className="text-sm text-yellow-700">
+              <h3 className="font-semibold text-yellow-900 dark:text-yellow-100">Unverified Expenses Detected</h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
                 This driver has <strong>PKR {pendingExpenses.toLocaleString()}</strong> in Pending expenses deducted from the expected cash.
                 Please verify their expense receipts before accepting this handover.
               </p>
@@ -245,13 +245,12 @@ function CashHandoverDetailContent() {
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle
-              className={`text-sm font-medium ${
-                hasDiscrepancy
+              className={`text-sm font-medium ${hasDiscrepancy
                   ? discrepancy > 0
                     ? 'text-yellow-900 dark:text-yellow-100'
                     : 'text-red-900 dark:text-red-100'
                   : 'text-green-900 dark:text-green-100'
-              }`}
+                }`}
             >
               Discrepancy
             </CardTitle>
@@ -263,13 +262,12 @@ function CashHandoverDetailContent() {
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${
-                hasDiscrepancy
+              className={`text-2xl font-bold ${hasDiscrepancy
                   ? discrepancy > 0
                     ? 'text-yellow-600 dark:text-yellow-400'
                     : 'text-red-600 dark:text-red-400'
                   : 'text-green-600 dark:text-green-400'
-              }`}
+                }`}
             >
               {hasDiscrepancy ? `PKR ${Math.abs(discrepancy).toFixed(2)}` : 'Perfect Match'}
             </div>

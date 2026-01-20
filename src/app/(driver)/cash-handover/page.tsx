@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertCircle, CheckCircle, Clock, DollarSign, FileText, Package, TrendingUp } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Calendar, CheckCircle, Clock, DollarSign, FileText, Package, TrendingUp } from 'lucide-react';
 import { Suspense, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -75,9 +75,20 @@ function CashHandoverContent() {
     );
   }
 
-  const expectedCash = parseFloat(summary?.expectedCash || '0');
+  // Today's expected cash
+  const todayExpectedCash = parseFloat(summary?.expectedCash || '0');
+
+  // Pending cash from previous days
+  const pendingFromPreviousDays = summary?.pendingFromPreviousDays;
+  const hasPendingCash = pendingFromPreviousDays?.hasPendingCash || false;
+  const pendingCashAmount = parseFloat(pendingFromPreviousDays?.netPendingCash || '0');
+
+  // Total expected cash (today + previous days)
+  const totalExpectedCash = parseFloat(summary?.totalExpectedCash || '0');
+
+  // Use total expected cash for discrepancy calculation
   const enteredCash = parseFloat(actualCash || '0');
-  const discrepancy = expectedCash - enteredCash;
+  const discrepancy = totalExpectedCash - enteredCash;
   const hasDiscrepancy = Math.abs(discrepancy) > 0.01;
 
   return (
@@ -87,6 +98,53 @@ function CashHandoverContent() {
         <h1 className="text-3xl font-bold tracking-tight">End of Day - Cash Handover</h1>
         <p className="text-muted-foreground">Submit your daily cash collection</p>
       </div>
+
+      {/* CRITICAL: Pending Cash from Previous Days Alert */}
+      {hasPendingCash && (
+        <Card className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-5 w-5" />
+              Pending Cash from Previous Days
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+              PKR {pendingCashAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+              This cash was collected on previous days and must be included in today's handover.
+            </p>
+
+            {/* Breakdown by day */}
+            {pendingFromPreviousDays?.pendingDays && pendingFromPreviousDays.pendingDays.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Breakdown by date:</p>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {pendingFromPreviousDays.pendingDays.map((day: any) => (
+                    <div
+                      key={day.date}
+                      className="flex items-center justify-between text-xs bg-amber-100 dark:bg-amber-900/30 rounded px-2 py-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        <span>{format(new Date(day.date), 'dd MMM yyyy')}</span>
+                        <span className="text-amber-600">({day.orderCount} orders)</span>
+                        {day.hasPendingHandover && (
+                          <Badge variant="outline" className="text-[10px] py-0 px-1 border-amber-400 text-amber-600">
+                            Handover Pending
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="font-medium">PKR {parseFloat(day.netCash).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Statistics */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -98,7 +156,7 @@ function CashHandoverContent() {
           <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">{summary?.completedOrders || 0}</div>
             <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-1">
-              out of {summary?.totalOrders || 0} assigned
+              out of {summary?.totalOrders || 0} assigned (today)
             </p>
           </CardContent>
         </Card>
@@ -109,9 +167,9 @@ function CashHandoverContent() {
             <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground shrink-0 ml-1" />
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
-            <div className="text-xl sm:text-2xl font-bold">{Array.isArray(summary?.cashOrders) ? summary.cashOrders.length : 0}</div>
+            <div className="text-xl sm:text-2xl font-bold">{Array.isArray(summary?.ordersPaidInCash) ? summary.ordersPaidInCash.length : 0}</div>
             <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight mt-1">
-              paid in cash
+              paid in cash (today)
             </p>
           </CardContent>
         </Card>
@@ -119,18 +177,22 @@ function CashHandoverContent() {
         <Card className="col-span-2 md:col-span-1 border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20 shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 p-3 sm:p-4 pb-1 sm:pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium text-green-900 dark:text-green-100 leading-tight">
-              Expected Cash
+              Total Expected Cash
             </CardTitle>
             <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 shrink-0 ml-1" />
           </CardHeader>
           <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
-              PKR {expectedCash.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              PKR {totalExpectedCash.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </div>
-            <div className="flex flex-row flex-wrap gap-x-3 gap-y-1 mt-1">
-              <p className="text-[10px] sm:text-xs text-muted-foreground">Gross: {summary?.grossCash || '0'}</p>
-              {parseFloat(summary?.expensesAmount || '0') > 0 && (
-                <p className="text-[10px] sm:text-xs text-red-500 font-medium">- Exp: {summary?.expensesAmount}</p>
+            <div className="flex flex-col gap-y-1 mt-1">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Today: {todayExpectedCash.toLocaleString()} (Gross: {summary?.grossCash || '0'}{parseFloat(summary?.expensesAmount || '0') > 0 ? ` - Exp: ${summary?.expensesAmount}` : ''})
+              </p>
+              {hasPendingCash && (
+                <p className="text-[10px] sm:text-xs text-amber-600 font-medium">
+                  + Previous Days: {pendingCashAmount.toLocaleString()}
+                </p>
               )}
             </div>
           </CardContent>
@@ -269,11 +331,10 @@ function CashHandoverContent() {
             {/* Discrepancy Warning */}
             {actualCash && hasDiscrepancy && (
               <div
-                className={`rounded-lg border p-4 ${
-                  discrepancy > 0
-                    ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/20'
-                    : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20'
-                }`}
+                className={`rounded-lg border p-4 ${discrepancy > 0
+                  ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/20'
+                  : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/20'
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <AlertCircle className={`mt-0.5 h-5 w-5 ${discrepancy > 0 ? 'text-yellow-600' : 'text-red-600'}`} />
@@ -303,9 +364,22 @@ function CashHandoverContent() {
 
             {/* Summary Before Submit */}
             <div className="space-y-2 rounded-lg bg-muted p-4">
+              {hasPendingCash && (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Today's Cash:</span>
+                    <span>PKR {todayExpectedCash.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-amber-600">+ Previous Days:</span>
+                    <span className="text-amber-600">PKR {pendingCashAmount.toFixed(2)}</span>
+                  </div>
+                  <Separator />
+                </>
+              )}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Expected Cash:</span>
-                <span className="font-bold">PKR {expectedCash.toFixed(2)}</span>
+                <span className="text-sm font-medium">Total Expected Cash:</span>
+                <span className="font-bold">PKR {totalExpectedCash.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Actual Cash:</span>

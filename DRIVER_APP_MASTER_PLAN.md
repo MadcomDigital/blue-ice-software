@@ -1,4 +1,5 @@
 # Driver App Master Plan
+
 ## Complete Solution for Order Visibility, Status Handling & Data Consistency
 
 **Version:** 1.0
@@ -28,13 +29,13 @@
 
 This master plan addresses five critical issues in the Blue Ice driver app:
 
-| Issue | Current State | Target State |
-|-------|---------------|--------------|
-| **Order Visibility** | Cancelled/rescheduled orders still show in To Do | Orders move to appropriate tabs immediately |
-| **Order Breakdown** | No visibility into order categories | Full breakdown with counts and history |
-| **Real-Time Stats** | Manual refresh required | Optimistic updates + background sync |
-| **Date Clarity** | No date-based filtering | Session-based system with date awareness |
-| **Financial Transparency** | Scattered financial data | Unified financial dashboard with daily summaries |
+| Issue                      | Current State                                    | Target State                                     |
+| -------------------------- | ------------------------------------------------ | ------------------------------------------------ |
+| **Order Visibility**       | Cancelled/rescheduled orders still show in To Do | Orders move to appropriate tabs immediately      |
+| **Order Breakdown**        | No visibility into order categories              | Full breakdown with counts and history           |
+| **Real-Time Stats**        | Manual refresh required                          | Optimistic updates + background sync             |
+| **Date Clarity**           | No date-based filtering                          | Session-based system with date awareness         |
+| **Financial Transparency** | Scattered financial data                         | Unified financial dashboard with daily summaries |
 
 **Approach:** Session-based delivery management (like Uber/Careem) with clear status segregation, real-time updates via React Query optimistic mutations, and comprehensive financial tracking.
 
@@ -47,17 +48,15 @@ This master plan addresses five critical issues in the Blue Ice driver app:
 #### 1. Order Filtering Logic (Found in `src/app/(driver)/deliveries/page.tsx`)
 
 **Current Implementation:**
+
 ```typescript
 // Orders are fetched and filtered on the client
-const pendingOrders = orders?.filter(
-  order => order.status === 'PENDING' || order.status === 'IN_PROGRESS'
-);
-const completedOrders = orders?.filter(
-  order => order.status === 'COMPLETED'
-);
+const pendingOrders = orders?.filter((order) => order.status === 'PENDING' || order.status === 'IN_PROGRESS');
+const completedOrders = orders?.filter((order) => order.status === 'COMPLETED');
 ```
 
 **Problems:**
+
 - `CANCELLED` and `RESCHEDULED` orders are not handled - they disappear
 - No tab/section for cancelled or rescheduled orders
 - Orders don't move to different sections after status change until page refresh
@@ -65,16 +64,14 @@ const completedOrders = orders?.filter(
 #### 2. Stats Calculation (Found in `src/features/driver-view/queries.ts`)
 
 **Current Implementation:**
+
 ```typescript
-const pendingOrders = orders.filter(
-  (order) => order.status === OrderStatus.PENDING || order.status === OrderStatus.IN_PROGRESS
-);
-const completedOrders = orders.filter(
-  (order) => order.status === OrderStatus.COMPLETED
-);
+const pendingOrders = orders.filter((order) => order.status === OrderStatus.PENDING || order.status === OrderStatus.IN_PROGRESS);
+const completedOrders = orders.filter((order) => order.status === OrderStatus.COMPLETED);
 ```
 
 **Problems:**
+
 - No tracking of cancelled/rescheduled counts
 - Stats don't reflect all order outcomes
 - No date-based breakdown
@@ -82,15 +79,17 @@ const completedOrders = orders.filter(
 #### 3. Query Invalidation Pattern
 
 **Current Implementation:**
+
 ```typescript
 // After order update in use-update-order.ts
 onSuccess: () => {
   queryClient.invalidateQueries({ queryKey: ['orders'] });
   queryClient.invalidateQueries({ queryKey: ['driver-stats'] });
-}
+};
 ```
 
 **Problem:**
+
 - Relies only on cache invalidation (refetch)
 - No optimistic updates for instant feedback
 - Feels sluggish to drivers
@@ -128,13 +127,13 @@ onSuccess: () => {
 
 ### Real-World App Patterns Applied
 
-| App | Pattern We're Adopting |
-|-----|------------------------|
+| App                  | Pattern We're Adopting                          |
+| -------------------- | ----------------------------------------------- |
 | **Uber Eats Driver** | Session-based work model, real-time trip status |
-| **Careem Captain** | Daily earning summaries, trip history tabs |
-| **Foodpanda Rider** | Order queue with clear status badges |
-| **Amazon Flex** | Delivery block concept, route optimization |
-| **DoorDash** | Detailed order breakdown, completion rates |
+| **Careem Captain**   | Daily earning summaries, trip history tabs      |
+| **Foodpanda Rider**  | Order queue with clear status badges            |
+| **Amazon Flex**      | Delivery block concept, route optimization      |
+| **DoorDash**         | Detailed order breakdown, completion rates      |
 
 ---
 
@@ -183,26 +182,20 @@ onSuccess: () => {
 ```typescript
 // New tab-based order organization
 enum OrderTab {
-  TODO = 'todo',           // PENDING + IN_PROGRESS
-  DONE = 'done',           // COMPLETED
-  ISSUES = 'issues',       // CANCELLED + RESCHEDULED
+  TODO = 'todo', // PENDING + IN_PROGRESS
+  DONE = 'done', // COMPLETED
+  ISSUES = 'issues', // CANCELLED + RESCHEDULED
 }
 
 // Order filtering logic
 const filterOrdersByTab = (orders: Order[], tab: OrderTab) => {
   switch (tab) {
     case OrderTab.TODO:
-      return orders.filter(o =>
-        o.status === 'PENDING' || o.status === 'IN_PROGRESS'
-      );
+      return orders.filter((o) => o.status === 'PENDING' || o.status === 'IN_PROGRESS');
     case OrderTab.DONE:
-      return orders.filter(o =>
-        o.status === 'COMPLETED'
-      );
+      return orders.filter((o) => o.status === 'COMPLETED');
     case OrderTab.ISSUES:
-      return orders.filter(o =>
-        o.status === 'CANCELLED' || o.status === 'RESCHEDULED'
-      );
+      return orders.filter((o) => o.status === 'CANCELLED' || o.status === 'RESCHEDULED');
     default:
       return orders;
   }
@@ -215,9 +208,9 @@ const filterOrdersByTab = (orders: Order[], tab: OrderTab) => {
 // Enhanced order card with status-aware rendering
 interface EnhancedOrderCardProps {
   order: Order;
-  showStatusBadge: boolean;  // Show prominent status for Issues tab
-  showRescheduleDate?: boolean;  // Show new date for rescheduled
-  showCancellationReason?: boolean;  // Show reason for cancelled
+  showStatusBadge: boolean; // Show prominent status for Issues tab
+  showRescheduleDate?: boolean; // Show new date for rescheduled
+  showCancellationReason?: boolean; // Show reason for cancelled
 }
 ```
 
@@ -238,18 +231,18 @@ const ORDER_VISIBILITY = {
   TODO_TAB: {
     statuses: ['PENDING', 'IN_PROGRESS'],
     sortBy: 'sequenceOrder',
-    showActions: true,  // Deliver, Unable to Deliver buttons
+    showActions: true, // Deliver, Unable to Deliver buttons
   },
   DONE_TAB: {
     statuses: ['COMPLETED'],
     sortBy: 'completedAt',
-    showActions: false,  // Read-only, show details
+    showActions: false, // Read-only, show details
   },
   ISSUES_TAB: {
     statuses: ['CANCELLED', 'RESCHEDULED'],
     sortBy: 'updatedAt',
-    showActions: false,  // Read-only with explanation
-    showReason: true,    // Why cancelled/rescheduled
+    showActions: false, // Read-only with explanation
+    showReason: true, // Why cancelled/rescheduled
   },
 };
 ```
@@ -274,18 +267,16 @@ const useUnableToDeliver = () => {
 
       // Optimistically update the order status
       queryClient.setQueryData(['orders'], (old: Order[]) =>
-        old.map(order =>
+        old.map((order) =>
           order.id === variables.orderId
             ? {
                 ...order,
-                status: variables.action === 'RESCHEDULE'
-                  ? 'RESCHEDULED'
-                  : 'CANCELLED',
+                status: variables.action === 'RESCHEDULE' ? 'RESCHEDULED' : 'CANCELLED',
                 cancellationReason: variables.reason,
                 rescheduledToDate: variables.rescheduleDate,
               }
-            : order
-        )
+            : order,
+        ),
       );
 
       // Also update stats optimistically
@@ -321,6 +312,7 @@ const useUnableToDeliver = () => {
 ### Current Problem Analysis
 
 The stats board relies on query invalidation after mutations, which:
+
 1. Requires a network roundtrip
 2. Can be slow on poor connections
 3. Feels unresponsive to drivers
@@ -354,27 +346,27 @@ The stats board relies on query invalidation after mutations, which:
 interface DriverSessionStats {
   // Session Info
   sessionId: string;
-  sessionDate: string;  // YYYY-MM-DD
+  sessionDate: string; // YYYY-MM-DD
   sessionStartTime: string;
 
   // Order Breakdown
   totalOrders: number;
-  pendingOrders: number;      // Still To Do
-  completedOrders: number;    // Successfully delivered
-  cancelledOrders: number;    // Could not deliver
-  rescheduledOrders: number;  // Moved to future date
+  pendingOrders: number; // Still To Do
+  completedOrders: number; // Successfully delivered
+  cancelledOrders: number; // Could not deliver
+  rescheduledOrders: number; // Moved to future date
 
   // Financial Summary
-  totalExpectedCash: number;    // Sum of all order totals (CASH method)
-  totalCollectedCash: number;   // Actual cash collected
-  totalOnlinePayments: number;  // UPI/Card payments
-  totalCreditGiven: number;     // Udhaar/Credit
+  totalExpectedCash: number; // Sum of all order totals (CASH method)
+  totalCollectedCash: number; // Actual cash collected
+  totalOnlinePayments: number; // UPI/Card payments
+  totalCreditGiven: number; // Udhaar/Credit
 
   // Bottle Exchange
   totalFilledGiven: number;
   totalEmptyTaken: number;
   totalDamagedReturned: number;
-  bottleBalance: number;  // filledGiven - emptyTaken - damaged
+  bottleBalance: number; // filledGiven - emptyTaken - damaged
 
   // Expenses
   totalExpenses: number;
@@ -383,8 +375,8 @@ interface DriverSessionStats {
   rejectedExpenses: number;
 
   // Computed
-  netCashToHandover: number;  // collectedCash - approvedExpenses
-  completionRate: number;     // (completed / total) * 100
+  netCashToHandover: number; // collectedCash - approvedExpenses
+  completionRate: number; // (completed / total) * 100
 }
 ```
 
@@ -430,9 +422,7 @@ const useRealtimeStats = () => {
     const socket = io('/driver-updates');
 
     socket.on('stats-update', (event: RealtimeEvent) => {
-      queryClient.setQueryData(['driver-stats'], (old) =>
-        applyRealtimeUpdate(old, event)
-      );
+      queryClient.setQueryData(['driver-stats'], (old) => applyRealtimeUpdate(old, event));
     });
 
     return () => socket.disconnect();
@@ -471,13 +461,13 @@ After analyzing real-world delivery apps, we recommend a **Session-Based Model**
 
 ### Why Session-Based?
 
-| Factor | Date-Based | Shift-Based | Session-Based (Recommended) |
-|--------|------------|-------------|------------------------------|
+| Factor                  | Date-Based            | Shift-Based             | Session-Based (Recommended)       |
+| ----------------------- | --------------------- | ----------------------- | --------------------------------- |
 | **Late Night Handling** | Confusing at midnight | Needs shift definitions | Seamless - session spans midnight |
-| **Order Carryover** | Manual handling | Complex logic | Automatic until session ends |
-| **Flexibility** | Rigid | Semi-flexible | Fully flexible |
-| **Cash Tracking** | Per date | Per shift | Per session (cleaner) |
-| **Real-World Apps** | N/A | Some logistics apps | Uber, Careem, DoorDash |
+| **Order Carryover**     | Manual handling       | Complex logic           | Automatic until session ends      |
+| **Flexibility**         | Rigid                 | Semi-flexible           | Fully flexible                    |
+| **Cash Tracking**       | Per date              | Per shift               | Per session (cleaner)             |
+| **Real-World Apps**     | N/A                   | Some logistics apps     | Uber, Careem, DoorDash            |
 
 ### Session Model Implementation
 
@@ -490,7 +480,7 @@ interface DriverSession {
   // Timing
   startedAt: DateTime;
   endedAt: DateTime | null;
-  sessionDate: string;  // Business date (YYYY-MM-DD)
+  sessionDate: string; // Business date (YYYY-MM-DD)
 
   // Status
   isActive: boolean;
@@ -577,11 +567,7 @@ const getBusinessDate = (timestamp: Date): string => {
 // Date selector with smart defaults
 interface DateFilterConfig {
   // Quick filters
-  quickFilters: [
-    { label: 'Today', value: 'today' },
-    { label: 'Yesterday', value: 'yesterday' },
-    { label: 'This Week', value: 'week' },
-  ];
+  quickFilters: [{ label: 'Today'; value: 'today' }, { label: 'Yesterday'; value: 'yesterday' }, { label: 'This Week'; value: 'week' }];
 
   // Custom date picker
   customDateEnabled: true;
@@ -594,10 +580,11 @@ interface DateFilterConfig {
 const useSessionOrders = (sessionDate: string) => {
   return useQuery({
     queryKey: ['orders', 'session', sessionDate],
-    queryFn: () => fetchOrders({
-      date: sessionDate,
-      includeCarryover: true,  // Include past incomplete orders
-    }),
+    queryFn: () =>
+      fetchOrders({
+        date: sessionDate,
+        includeCarryover: true, // Include past incomplete orders
+      }),
   });
 };
 ```
@@ -675,13 +662,13 @@ const getOrdersForSession = async (driverId: string, sessionId: string) => {
 ```typescript
 interface DriverFinancialSummary {
   // Period
-  date: string;  // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
 
   // Collections
   collections: {
     cash: number;
-    online: number;  // UPI, Card
-    credit: number;  // Udhaar
+    online: number; // UPI, Card
+    credit: number; // Udhaar
     prepaid: number; // From wallet
     total: number;
   };
@@ -696,7 +683,7 @@ interface DriverFinancialSummary {
   };
 
   // Net Calculations
-  netCash: number;  // cash - approved expenses
+  netCash: number; // cash - approved expenses
 
   // Handover Status
   handover: {
@@ -1124,58 +1111,58 @@ src/
 
 **Duration:** 3-5 days
 
-| Task | Files Affected | Description |
-|------|----------------|-------------|
-| 1.1 | `deliveries/page.tsx` | Add Issues tab with CANCELLED/RESCHEDULED filtering |
-| 1.2 | `driver-stats.tsx` | Add cancelled/rescheduled counts to stats |
-| 1.3 | `queries.ts` | Update getDriverStats to include all status counts |
-| 1.4 | `enhanced-order-card.tsx` | Add status badge and reason display |
-| 1.5 | `use-unable-to-deliver.ts` | Implement optimistic updates |
+| Task | Files Affected             | Description                                         |
+| ---- | -------------------------- | --------------------------------------------------- |
+| 1.1  | `deliveries/page.tsx`      | Add Issues tab with CANCELLED/RESCHEDULED filtering |
+| 1.2  | `driver-stats.tsx`         | Add cancelled/rescheduled counts to stats           |
+| 1.3  | `queries.ts`               | Update getDriverStats to include all status counts  |
+| 1.4  | `enhanced-order-card.tsx`  | Add status badge and reason display                 |
+| 1.5  | `use-unable-to-deliver.ts` | Implement optimistic updates                        |
 
 ### Phase 2: Real-Time Stats (Priority: High)
 
 **Duration:** 2-3 days
 
-| Task | Files Affected | Description |
-|------|----------------|-------------|
-| 2.1 | `use-get-driver-stats.ts` | Add refetchInterval and staleTime |
-| 2.2 | `use-update-order.ts` | Add optimistic updates for completions |
-| 2.3 | `stats-dashboard.tsx` | New component with live indicators |
-| 2.4 | All mutation hooks | Add proper cache invalidation |
+| Task | Files Affected            | Description                            |
+| ---- | ------------------------- | -------------------------------------- |
+| 2.1  | `use-get-driver-stats.ts` | Add refetchInterval and staleTime      |
+| 2.2  | `use-update-order.ts`     | Add optimistic updates for completions |
+| 2.3  | `stats-dashboard.tsx`     | New component with live indicators     |
+| 2.4  | All mutation hooks        | Add proper cache invalidation          |
 
 ### Phase 3: Session-Based Design (Priority: Medium)
 
 **Duration:** 4-5 days
 
-| Task | Files Affected | Description |
-|------|----------------|-------------|
-| 3.1 | `schema.prisma` | Add DriverSession model (optional) |
-| 3.2 | `queries.ts` | Update order fetching with business date logic |
-| 3.3 | `deliveries/page.tsx` | Add date selector with session awareness |
-| 3.4 | `getBusinessDate()` | Utility for midnight handling |
+| Task | Files Affected        | Description                                    |
+| ---- | --------------------- | ---------------------------------------------- |
+| 3.1  | `schema.prisma`       | Add DriverSession model (optional)             |
+| 3.2  | `queries.ts`          | Update order fetching with business date logic |
+| 3.3  | `deliveries/page.tsx` | Add date selector with session awareness       |
+| 3.4  | `getBusinessDate()`   | Utility for midnight handling                  |
 
 ### Phase 4: Financial Dashboard (Priority: Medium)
 
 **Duration:** 5-7 days
 
-| Task | Files Affected | Description |
-|------|----------------|-------------|
-| 4.1 | `financials/page.tsx` | New financial summary page |
-| 4.2 | `financials/expenses/page.tsx` | Enhanced expense management |
-| 4.3 | `financials/history/page.tsx` | Historical financial view |
-| 4.4 | `financial-summary.tsx` | Collection breakdown component |
-| 4.5 | API updates | Enhanced financial endpoints |
+| Task | Files Affected                 | Description                    |
+| ---- | ------------------------------ | ------------------------------ |
+| 4.1  | `financials/page.tsx`          | New financial summary page     |
+| 4.2  | `financials/expenses/page.tsx` | Enhanced expense management    |
+| 4.3  | `financials/history/page.tsx`  | Historical financial view      |
+| 4.4  | `financial-summary.tsx`        | Collection breakdown component |
+| 4.5  | API updates                    | Enhanced financial endpoints   |
 
 ### Phase 5: UI/UX Polish (Priority: Low)
 
 **Duration:** 3-4 days
 
-| Task | Files Affected | Description |
-|------|----------------|-------------|
-| 5.1 | `layout.tsx` | Implement bottom navigation |
-| 5.2 | `bottom-nav.tsx` | Navigation component |
-| 5.3 | All screens | Consistent styling and transitions |
-| 5.4 | Loading states | Skeleton loaders everywhere |
+| Task | Files Affected   | Description                        |
+| ---- | ---------------- | ---------------------------------- |
+| 5.1  | `layout.tsx`     | Implement bottom navigation        |
+| 5.2  | `bottom-nav.tsx` | Navigation component               |
+| 5.3  | All screens      | Consistent styling and transitions |
+| 5.4  | Loading states   | Skeleton loaders everywhere        |
 
 ---
 
@@ -1249,10 +1236,10 @@ interface EnhancedDriverStats {
   // Order breakdown
   orders: {
     total: number;
-    pending: number;      // PENDING + IN_PROGRESS
-    completed: number;    // COMPLETED
-    cancelled: number;    // CANCELLED
-    rescheduled: number;  // RESCHEDULED
+    pending: number; // PENDING + IN_PROGRESS
+    completed: number; // COMPLETED
+    cancelled: number; // CANCELLED
+    rescheduled: number; // RESCHEDULED
   };
 
   // Financial breakdown
@@ -1274,7 +1261,7 @@ interface EnhancedDriverStats {
   };
 
   // Rates
-  completionRate: number;  // (completed / total) * 100
+  completionRate: number; // (completed / total) * 100
 }
 ```
 
@@ -1321,21 +1308,21 @@ interface FinancialHistoryResponse {
 const DRIVER_QUERY_CONFIG = {
   // Stats - refresh frequently
   stats: {
-    staleTime: 10 * 1000,       // 10 seconds
+    staleTime: 10 * 1000, // 10 seconds
     refetchInterval: 30 * 1000, // 30 seconds
     refetchOnWindowFocus: true,
   },
 
   // Orders - moderate refresh
   orders: {
-    staleTime: 30 * 1000,       // 30 seconds
+    staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // 1 minute
     refetchOnWindowFocus: true,
   },
 
   // Financial - less frequent
   financial: {
-    staleTime: 60 * 1000,       // 1 minute
+    staleTime: 60 * 1000, // 1 minute
     refetchInterval: 120 * 1000, // 2 minutes
     refetchOnWindowFocus: true,
   },
@@ -1353,7 +1340,7 @@ const useOptimisticMutation = <TData, TVariables>(
     queryKey: string[];
     optimisticUpdate: (old: TData, variables: TVariables) => TData;
     invalidateKeys?: string[][];
-  }
+  },
 ) => {
   const queryClient = useQueryClient();
 
@@ -1364,9 +1351,7 @@ const useOptimisticMutation = <TData, TVariables>(
       await queryClient.cancelQueries({ queryKey: options.queryKey });
       const previous = queryClient.getQueryData(options.queryKey);
 
-      queryClient.setQueryData(options.queryKey, (old: TData) =>
-        options.optimisticUpdate(old, variables)
-      );
+      queryClient.setQueryData(options.queryKey, (old: TData) => options.optimisticUpdate(old, variables));
 
       return { previous };
     },
@@ -1378,9 +1363,7 @@ const useOptimisticMutation = <TData, TVariables>(
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: options.queryKey });
-      options.invalidateKeys?.forEach(key =>
-        queryClient.invalidateQueries({ queryKey: key })
-      );
+      options.invalidateKeys?.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
     },
   });
 };
@@ -1394,7 +1377,7 @@ const useOptimisticMutation = <TData, TVariables>(
 const MOBILE_OPTIMIZATIONS = {
   // Virtualize long lists
   orderList: {
-    useVirtualization: true,  // For 20+ orders
+    useVirtualization: true, // For 20+ orders
     itemHeight: 180,
     overscan: 3,
   },
@@ -1407,8 +1390,8 @@ const MOBILE_OPTIMIZATIONS = {
 
   // Reduce bundle
   codeSpitting: {
-    financialHistory: 'lazy',  // Load on demand
-    mapView: 'lazy',           // Load on demand
+    financialHistory: 'lazy', // Load on demand
+    mapView: 'lazy', // Load on demand
   },
 
   // Offline support
@@ -1426,13 +1409,13 @@ const MOBILE_OPTIMIZATIONS = {
 
 After implementation, the driver app should achieve:
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Order status accuracy | ~80% | 100% |
-| Stats update delay | 5-10 seconds | < 1 second (optimistic) |
-| Driver complaints about missing data | Frequent | Zero |
-| Cash handover discrepancies | High | Reduced by 50% |
-| Driver trust in system | Low | High |
+| Metric                               | Current      | Target                  |
+| ------------------------------------ | ------------ | ----------------------- |
+| Order status accuracy                | ~80%         | 100%                    |
+| Stats update delay                   | 5-10 seconds | < 1 second (optimistic) |
+| Driver complaints about missing data | Frequent     | Zero                    |
+| Cash handover discrepancies          | High         | Reduced by 50%          |
+| Driver trust in system               | Low          | High                    |
 
 ---
 
@@ -1450,4 +1433,4 @@ The implementation follows real-world delivery app patterns (Uber, Careem, Foodp
 
 ---
 
-*Document prepared for Blue Ice CRM - January 2026*
+_Document prepared for Blue Ice CRM - January 2026_

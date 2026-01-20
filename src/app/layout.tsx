@@ -1,10 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import type { PropsWithChildren } from 'react';
 
 import FcmTokenComp from '@/components/firebase-forground';
 import { Toaster } from '@/components/ui/sonner';
-import { siteConfig } from '@/config';
+import { siteConfig, siteViewport } from '@/config';
 import { cn } from '@/lib/utils';
 
 import './globals.css';
@@ -15,6 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = siteConfig;
+export const viewport: Viewport = siteViewport;
 
 const RootLayout = ({ children }: Readonly<PropsWithChildren>) => {
   return (

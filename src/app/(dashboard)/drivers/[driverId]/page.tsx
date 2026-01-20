@@ -8,8 +8,10 @@ import { Suspense, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useGetDriverDeliveries } from '@/features/drivers/api/use-get-driver-deliveries';
 import { useGetDriverStats } from '@/features/drivers/api/use-get-driver-stats';
 
 function DriverDetailContent() {
@@ -21,6 +23,10 @@ function DriverDetailContent() {
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'custom'>('month');
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
+
+  // Pagination state for recent orders
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersLimit, setOrdersLimit] = useState(10);
 
   // Calculate date range based on selection
   const getDateRange = () => {
@@ -56,6 +62,14 @@ function DriverDetailContent() {
 
   const { startDate, endDate } = getDateRange();
   const { data: stats, isLoading, error } = useGetDriverStats({ driverId, startDate, endDate });
+
+  const { data: deliveriesData, isLoading: isDeliveriesLoading } = useGetDriverDeliveries({
+    driverId,
+    startDate,
+    endDate,
+    page: ordersPage,
+    limit: ordersLimit,
+  });
 
   if (isLoading) {
     return (
@@ -295,45 +309,96 @@ function DriverDetailContent() {
 
       {/* Recent Orders */}
       <Card>
-        <CardHeader>
-          <CardTitle>Recent Deliveries</CardTitle>
-          <CardDescription>Latest 10 completed orders</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Recent Deliveries</CardTitle>
+            <CardDescription>
+              {deliveriesData?.pagination.total || 0} total completed orders
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentOrders.length === 0 ? (
+            {isDeliveriesLoading ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-24" />
+                ))}
+              </div>
+            ) : !deliveriesData?.deliveries.length ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No completed orders in this period</p>
             ) : (
-              recentOrders.map((order) => (
-                <div key={order.id} className="rounded-lg border p-4">
-                  <div className="mb-2 flex items-start justify-between">
-                    <div>
-                      <p className="font-medium">Order #{order.readableId}</p>
-                      <p className="text-sm text-muted-foreground">{order.customerName}</p>
-                      <p className="text-xs text-muted-foreground">{order.customerPhone}</p>
+              <>
+                {deliveriesData.deliveries.map((order: any) => (
+                  <div key={order.id} className="rounded-lg border p-4">
+                    <div className="mb-2 flex items-start justify-between">
+                      <div>
+                        <p className="font-medium">Order #{order.readableId}</p>
+                        <p className="text-sm text-muted-foreground">{order.customerName}</p>
+                        <p className="text-xs text-muted-foreground">{order.customerPhone}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">PKR {order.cashCollected}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {order.deliveredAt ? format(new Date(order.deliveredAt), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">PKR {order.cashCollected}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {order.deliveredAt ? format(new Date(order.deliveredAt), 'MMM dd, yyyy HH:mm') : 'N/A'}
-                      </p>
+                    <Separator className="my-2" />
+                    <div className="space-y-1">
+                      {order.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span>
+                            {item.quantity}x {item.productName}
+                          </span>
+                          <span className="text-muted-foreground">
+                            Filled: {item.filledGiven} • Empty: {item.emptyTaken}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <Separator className="my-2" />
-                  <div className="space-y-1">
-                    {order.items.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span>
-                          {item.quantity}x {item.productName}
-                        </span>
-                        <span className="text-muted-foreground">
-                          Filled: {item.filledGiven} • Empty: {item.emptyTaken}
-                        </span>
-                      </div>
-                    ))}
+                ))}
+
+                {/* Pagination */}
+                <div className="flex items-center justify-end space-x-2 pt-4">
+                  <div className="flex-1 text-sm text-muted-foreground">
+                    Showing {(ordersPage - 1) * ordersLimit + 1} to {Math.min(ordersPage * ordersLimit, deliveriesData.pagination.total)} of{' '}
+                    {deliveriesData.pagination.total} orders
+                    <div className="inline-block ml-4">
+                      <Select value={ordersLimit.toString()} onValueChange={(val) => {
+                        setOrdersLimit(parseInt(val));
+                        setOrdersPage(1);
+                      }}>
+                        <SelectTrigger className="h-8 w-[130px]">
+                          <SelectValue placeholder="Per page" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10 per page</SelectItem>
+                          <SelectItem value="20">20 per page</SelectItem>
+                          <SelectItem value="50">50 per page</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-muted-foreground">
+                      Page {ordersPage} of {deliveriesData.pagination.totalPages}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={() => setOrdersPage(ordersPage - 1)} disabled={ordersPage === 1}>
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setOrdersPage(ordersPage + 1)}
+                      disabled={ordersPage === deliveriesData.pagination.totalPages}
+                    >
+                      Next
+                    </Button>
                   </div>
                 </div>
-              ))
+              </>
             )}
           </div>
         </CardContent>

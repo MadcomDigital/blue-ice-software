@@ -1,6 +1,7 @@
 'use client';
 
-import { Banknote, CreditCard, History, Receipt, Wallet } from 'lucide-react';
+import { format } from 'date-fns';
+import { AlertTriangle, Banknote, Calendar, CreditCard, History, Receipt, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
@@ -83,7 +84,13 @@ function FinancialsContent() {
 
   const cashCollected = parseFloat(summary?.grossCash || '0');
   const expenses = parseFloat(summary?.expensesAmount || '0');
-  const netCash = parseFloat(summary?.expectedCash || '0');
+  const todayNetCash = parseFloat(summary?.expectedCash || '0');
+  const totalCashToHandover = parseFloat(summary?.totalExpectedCash || '0');
+
+  // Pending cash from previous days
+  const pendingFromPreviousDays = summary?.pendingFromPreviousDays;
+  const hasPendingCash = pendingFromPreviousDays?.hasPendingCash || false;
+  const pendingCashAmount = parseFloat(pendingFromPreviousDays?.netPendingCash || '0');
 
   return (
     <div className="space-y-6">
@@ -95,13 +102,55 @@ function FinancialsContent() {
         <ExpenseForm />
       </div>
 
+      {/* CRITICAL: Pending Cash from Previous Days Alert */}
+      {hasPendingCash && (
+        <Card className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-5 w-5" />
+              Pending Cash from Previous Days
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+              PKR {pendingCashAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
+              Cash collected but not yet handed over
+            </p>
+
+            {/* Breakdown by day */}
+            {pendingFromPreviousDays?.pendingDays && pendingFromPreviousDays.pendingDays.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Breakdown by date:</p>
+                <div className="max-h-32 overflow-y-auto space-y-1">
+                  {pendingFromPreviousDays.pendingDays.map((day: any) => (
+                    <div
+                      key={day.date}
+                      className="flex items-center justify-between text-xs bg-amber-100 dark:bg-amber-900/30 rounded px-2 py-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        <span>{format(new Date(day.date), 'dd MMM yyyy')}</span>
+                        <span className="text-amber-600">({day.orderCount} orders)</span>
+                      </div>
+                      <span className="font-medium">PKR {parseFloat(day.netCash).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Collections Grid */}
       <div className="grid grid-cols-2 gap-3">
         <CollectionCard
           icon={<Banknote className="h-5 w-5" />}
           label="Cash"
           amount={cashCollected}
-          count={Array.isArray(summary?.cashOrders) ? summary.cashOrders.length : 0}
+          count={Array.isArray(summary?.ordersPaidInCash) ? summary.ordersPaidInCash.length : 0}
           color="green"
         />
         <CollectionCard
@@ -146,15 +195,34 @@ function FinancialsContent() {
         </CardContent>
       </Card>
 
-      {/* Net Cash Card */}
+      {/* Today's Net Cash Card */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">Today's Net Cash</p>
+            <p className="text-2xl font-bold mt-1">
+              PKR {todayNetCash.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">Cash Collected - Expenses (today only)</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Total Cash to Handover Card (includes previous days pending) */}
       <Card className="bg-primary text-primary-foreground">
         <CardContent className="p-6">
           <div className="text-center">
-            <p className="text-sm opacity-80">Net Cash to Handover</p>
+            <p className="text-sm opacity-80">Total Cash to Handover</p>
             <p className="text-3xl font-bold mt-1">
-              PKR {netCash.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              PKR {totalCashToHandover.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </p>
-            <p className="text-xs opacity-70 mt-2">Cash Collected - Approved Expenses</p>
+            {hasPendingCash ? (
+              <p className="text-xs opacity-70 mt-2">
+                Today ({todayNetCash.toLocaleString()}) + Previous Days ({pendingCashAmount.toLocaleString()})
+              </p>
+            ) : (
+              <p className="text-xs opacity-70 mt-2">Cash Collected - Approved Expenses</p>
+            )}
           </div>
         </CardContent>
       </Card>

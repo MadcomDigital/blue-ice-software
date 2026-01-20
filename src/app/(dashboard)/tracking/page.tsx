@@ -13,7 +13,7 @@ export default function TrackingPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Live Tracking</h1>
+          <h1 className="main-heading">Live Fleet Tracking</h1>
           <p className="text-muted-foreground">Mission Control - Monitor all drivers in real-time</p>
         </div>
         <div className="rounded-lg border bg-card px-4 py-2 text-sm">

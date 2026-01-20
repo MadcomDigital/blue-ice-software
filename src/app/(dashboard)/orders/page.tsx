@@ -22,7 +22,7 @@ function OrdersContent() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
+        <h1 className="main-heading">Order Management</h1>
         <Button onClick={() => open()}>
           <Plus className="mr-2 h-4 w-4" />
           Create Order

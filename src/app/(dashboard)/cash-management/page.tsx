@@ -22,6 +22,7 @@ function CashManagementContent() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const { data: stats, isLoading: statsLoading } = useGetCashStats();
   const { data: handovers, isLoading: handoversLoading } = useGetCashHandovers({
@@ -29,7 +30,7 @@ function CashManagementContent() {
     startDate,
     endDate,
     page,
-    limit: 20,
+    limit,
   });
 
   const getStatusBadge = (status: CashHandoverStatus) => {
@@ -71,7 +72,7 @@ function CashManagementContent() {
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Cash Management</h1>
+        <h1 className="main-heading">Cash Handover Logs</h1>
         <p className="text-muted-foreground">Monitor and verify driver cash handovers</p>
       </div>
 
@@ -202,7 +203,7 @@ function CashManagementContent() {
                 <Skeleton key={i} className="h-24" />
               ))}
             </div>
-          ) : handovers?.handovers.length === 0 ? (
+          ) : !handovers || handovers.handovers.length === 0 ? (
             <div className="py-12 text-center">
               <AlertCircle className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
               <p className="text-lg font-medium">No handovers found</p>
@@ -244,9 +245,8 @@ function CashManagementContent() {
                         <div>
                           <p className="text-muted-foreground">Discrepancy</p>
                           <p
-                            className={`font-medium ${
-                              hasDiscrepancy ? (discrepancy > 0 ? 'text-yellow-600' : 'text-red-600') : 'text-green-600'
-                            }`}
+                            className={`font-medium ${hasDiscrepancy ? (discrepancy > 0 ? 'text-yellow-600' : 'text-red-600') : 'text-green-600'
+                              }`}
                           >
                             {hasDiscrepancy ? `PKR ${Math.abs(discrepancy).toFixed(2)} ${discrepancy > 0 ? 'short' : 'excess'}` : 'Perfect'}
                           </p>
@@ -271,19 +271,43 @@ function CashManagementContent() {
               </div>
 
               {/* Pagination */}
-              {handovers && handovers.pagination.totalPages > 1 && (
-                <div className="mt-6 flex items-center justify-between">
-                  <Button variant="outline" onClick={() => setPage(page - 1)} disabled={page === 1}>
-                    Previous
-                  </Button>
+              <div className="flex items-center justify-end space-x-2 py-4">
+                <div className="flex-1 text-sm text-muted-foreground">
+                  Showing {(page - 1) * limit + 1} to {Math.min(page * limit, handovers.pagination.total)} of{' '}
+                  {handovers.pagination.total} handovers
+                  <div className="inline-block ml-4">
+                    <Select value={limit.toString()} onValueChange={(val) => {
+                      setLimit(parseInt(val));
+                      setPage(1);
+                    }}>
+                      <SelectTrigger className="h-8 w-[130px]">
+                        <SelectValue placeholder="Per page" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 per page</SelectItem>
+                        <SelectItem value="20">20 per page</SelectItem>
+                        <SelectItem value="50">50 per page</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
                   <span className="text-sm text-muted-foreground">
                     Page {page} of {handovers.pagination.totalPages}
                   </span>
-                  <Button variant="outline" onClick={() => setPage(page + 1)} disabled={page === handovers.pagination.totalPages}>
+                  <Button variant="outline" size="sm" onClick={() => setPage(page - 1)} disabled={page === 1}>
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === handovers.pagination.totalPages}
+                  >
                     Next
                   </Button>
                 </div>
-              )}
+              </div>
             </>
           )}
         </CardContent>

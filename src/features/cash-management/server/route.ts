@@ -8,11 +8,17 @@ import {
   getCashHandover,
   getCashHandovers,
   getDriverDaySummary,
+  getDriverFinancialHistory,
   getDriverHandoverHistory,
   submitCashHandover,
   verifyCashHandover,
 } from '@/features/cash-management/queries';
-import { getCashHandoversQuerySchema, submitCashHandoverSchema, verifyCashHandoverSchema } from '@/features/cash-management/schema';
+import {
+  getCashHandoversQuerySchema,
+  getDriverFinancialHistorySchema,
+  submitCashHandoverSchema,
+  verifyCashHandoverSchema,
+} from '@/features/cash-management/schema';
 import { getDriverByUserId } from '@/features/drivers/queries';
 import { notifyAdmins } from '@/features/notifications/server/notify-admins';
 import { sessionMiddleware } from '@/lib/session-middleware';
@@ -89,7 +95,7 @@ const app = new Hono()
     }
   })
 
-  // Get driver's handover history
+  // Get driver's handover history (legacy - returns only handovers)
   .get('/driver/history', sessionMiddleware, async (ctx) => {
     const user = ctx.get('user');
 
@@ -106,6 +112,35 @@ const app = new Hono()
     } catch (error) {
       console.error('[DRIVER_HANDOVER_HISTORY_ERROR]:', error);
       return ctx.json({ error: 'Failed to fetch handover history' }, 500);
+    }
+  })
+
+  // Get driver's comprehensive financial history (NEW)
+  // Returns: handovers, expenses, daily cash collections with filtering
+  .get('/driver/financial-history', sessionMiddleware, zValidator('query', getDriverFinancialHistorySchema), async (ctx) => {
+    const user = ctx.get('user');
+
+    if (user.role !== UserRole.DRIVER) {
+      return ctx.json({ error: 'Only drivers can access this endpoint' }, 403);
+    }
+
+    const params = ctx.req.valid('query');
+
+    try {
+      const driver = await getDriverByUserId(user.id);
+      if (!driver) return ctx.json({ error: 'Driver not found' }, 404);
+
+      const history = await getDriverFinancialHistory(driver.id, {
+        startDate: params.startDate ? new Date(params.startDate) : undefined,
+        endDate: params.endDate ? new Date(params.endDate) : undefined,
+        page: params.page,
+        limit: params.limit,
+      });
+
+      return ctx.json({ data: history });
+    } catch (error) {
+      console.error('[DRIVER_FINANCIAL_HISTORY_ERROR]:', error);
+      return ctx.json({ error: 'Failed to fetch financial history' }, 500);
     }
   })
 

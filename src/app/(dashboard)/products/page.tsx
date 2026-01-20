@@ -16,7 +16,7 @@ function ProductsContent() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+        <h1 className="main-heading">Product Inventory</h1>
         <Button asChild>
           <Link href="/products/new">
             <Plus className="mr-2 h-4 w-4" />

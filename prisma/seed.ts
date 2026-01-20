@@ -30,6 +30,20 @@ async function main() {
   console.log('🌱 Starting seed...');
 
   // ================= CLEANUP =================
+  // Delete dependent records first to avoid foreign key violations
+  await prisma.auditLog.deleteMany();
+  await prisma.customerProductPrice.deleteMany();
+  await prisma.customerBottleWallet.deleteMany();
+  await prisma.ledger.deleteMany();
+  await prisma.driverLedger.deleteMany();
+  await prisma.driverLocationHistory.deleteMany();
+  await prisma.driverPerformanceMetrics.deleteMany();
+  await prisma.cashHandover.deleteMany();
+  await prisma.expense.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.routeAssignment.deleteMany();
+
+  // Then delete main operational data
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.customerProfile.deleteMany();

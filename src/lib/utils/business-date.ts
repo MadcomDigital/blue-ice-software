@@ -1,23 +1,10 @@
 import { format, parseISO, subDays } from 'date-fns';
 
 /**
- * Business date logic for late-night deliveries:
- * - 12 AM to 6 AM = Previous day (late night delivery session)
- * - 6 AM onwards = Current day
- *
- * This handles scenarios where drivers work past midnight
- * but are still fulfilling orders for the previous business day.
+ * Get current date in YYYY-MM-DD format.
+ * Standard calendar date behavior (midnight rollover).
  */
 export const getBusinessDate = (timestamp: Date = new Date()): string => {
-  const hour = timestamp.getHours();
-
-  // If between midnight (12 AM) and 6 AM, consider it previous day
-  if (hour >= 0 && hour < 6) {
-    const yesterday = new Date(timestamp);
-    yesterday.setDate(yesterday.getDate() - 1);
-    return format(yesterday, 'yyyy-MM-dd');
-  }
-
   return format(timestamp, 'yyyy-MM-dd');
 };
 
@@ -33,7 +20,7 @@ export const isBusinessToday = (date: string): boolean => {
  */
 export const getDateLabel = (date: string): string => {
   const today = getBusinessDate();
-  const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  const yesterday = getYesterdayBusinessDate();
 
   if (date === today) return 'Today';
   if (date === yesterday) return 'Yesterday';
@@ -43,6 +30,12 @@ export const getDateLabel = (date: string): string => {
 /**
  * Get business date for yesterday
  */
+/**
+ * Get business date for yesterday
+ * IMPORTANT: Derives from business date, not wall clock time
+ */
 export const getYesterdayBusinessDate = (): string => {
-  return format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  const todayStr = getBusinessDate(); // e.g. "2024-01-20"
+  const todayDate = parseISO(todayStr); // Date object for 2024-01-20
+  return format(subDays(todayDate, 1), 'yyyy-MM-dd'); // "2024-01-19"
 };
