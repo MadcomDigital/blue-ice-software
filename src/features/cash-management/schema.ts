@@ -30,3 +30,8 @@ export const getDriverFinancialHistorySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
+
+export const getCashStatsQuerySchema = z.object({
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+});

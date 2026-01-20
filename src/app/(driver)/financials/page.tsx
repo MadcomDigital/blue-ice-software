@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertTriangle, Banknote, Calendar, CreditCard, History, Receipt, Wallet } from 'lucide-react';
+import { AlertTriangle, Banknote, Calendar, CheckCircle, Clock, CreditCard, History, Receipt, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Suspense } from 'react';
@@ -91,6 +91,12 @@ function FinancialsContent() {
   const pendingFromPreviousDays = summary?.pendingFromPreviousDays;
   const hasPendingCash = pendingFromPreviousDays?.hasPendingCash || false;
   const pendingCashAmount = parseFloat(pendingFromPreviousDays?.netPendingCash || '0');
+
+  // Handover status - critical for showing correct UI state
+  const isHandoverSubmitted = summary?.isHandoverSubmitted || false;
+  const isHandoverVerified = summary?.isHandoverVerified || false;
+  const isHandoverPending = summary?.isHandoverPending || false;
+  const todayHandover = summary?.todayHandover;
 
   return (
     <div className="space-y-6">
@@ -208,31 +214,75 @@ function FinancialsContent() {
         </CardContent>
       </Card>
 
-      {/* Total Cash to Handover Card (includes previous days pending) */}
-      <Card className="bg-primary text-primary-foreground">
-        <CardContent className="p-6">
-          <div className="text-center">
-            <p className="text-sm opacity-80">Total Cash to Handover</p>
-            <p className="text-3xl font-bold mt-1">
-              PKR {totalCashToHandover.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </p>
-            {hasPendingCash ? (
-              <p className="text-xs opacity-70 mt-2">
-                Today ({todayNetCash.toLocaleString()}) + Previous Days ({pendingCashAmount.toLocaleString()})
+      {/* Handover Status Card - Shows when handover is submitted/verified */}
+      {isHandoverVerified && (
+        <Card className="border-green-500 bg-green-50 dark:bg-green-950/30">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <CheckCircle className="mx-auto h-12 w-12 text-green-600 dark:text-green-400" />
+              <p className="text-lg font-bold mt-2 text-green-700 dark:text-green-300">Cash Handover Complete</p>
+              <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                Today's cash (PKR {todayHandover?.actualCash || '0'}) has been verified
               </p>
-            ) : (
-              <p className="text-xs opacity-70 mt-2">Cash Collected - Approved Expenses</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              {todayHandover?.verifiedAt && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Verified at {format(new Date(todayHandover.verifiedAt), 'hh:mm a')}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isHandoverPending && (
+        <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <Clock className="mx-auto h-12 w-12 text-yellow-600 dark:text-yellow-400" />
+              <p className="text-lg font-bold mt-2 text-yellow-700 dark:text-yellow-300">Handover Pending Verification</p>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
+                You submitted PKR {todayHandover?.actualCash || '0'} - waiting for admin verification
+              </p>
+              {todayHandover?.submittedAt && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Submitted at {format(new Date(todayHandover.submittedAt), 'hh:mm a')}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Total Cash to Handover Card - Only show if handover NOT verified */}
+      {!isHandoverVerified && (
+        <Card className="bg-primary text-primary-foreground">
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-sm opacity-80">Total Cash to Handover</p>
+              <p className="text-3xl font-bold mt-1">
+                PKR {totalCashToHandover.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </p>
+              {hasPendingCash ? (
+                <p className="text-xs opacity-70 mt-2">
+                  Today ({todayNetCash.toLocaleString()}) + Previous Days ({pendingCashAmount.toLocaleString()})
+                </p>
+              ) : (
+                <p className="text-xs opacity-70 mt-2">Cash Collected - Approved Expenses</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Action Buttons */}
       <div className="space-y-3">
-        <Button className="w-full h-14" onClick={() => router.push('/cash-handover')}>
-          <Banknote className="mr-2 h-5 w-5" />
-          Submit Cash Handover
-        </Button>
+        {/* Show Submit button only if NOT verified */}
+        {!isHandoverVerified && (
+          <Button className="w-full h-14" onClick={() => router.push('/cash-handover')}>
+            <Banknote className="mr-2 h-5 w-5" />
+            {isHandoverPending ? 'Update Cash Handover' : 'Submit Cash Handover'}
+          </Button>
+        )}
 
         <Link href="/financials/history" className="block">
           <Button variant="outline" className="w-full">

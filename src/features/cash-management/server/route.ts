@@ -15,6 +15,7 @@ import {
 } from '@/features/cash-management/queries';
 import {
   getCashHandoversQuerySchema,
+  getCashStatsQuerySchema,
   getDriverFinancialHistorySchema,
   submitCashHandoverSchema,
   verifyCashHandoverSchema,
@@ -171,15 +172,19 @@ const app = new Hono()
   })
 
   // Get dashboard statistics
-  .get('/stats', sessionMiddleware, async (ctx) => {
+  .get('/stats', sessionMiddleware, zValidator('query', getCashStatsQuerySchema), async (ctx) => {
     const user = ctx.get('user');
 
     if (!ADMIN.includes(user.role)) {
       return ctx.json({ error: 'Unauthorized' }, 403);
     }
+    const params = ctx.req.valid('query');
 
     try {
-      const stats = await getCashDashboardStats();
+      const stats = await getCashDashboardStats({
+        startDate: params.startDate ? new Date(params.startDate) : undefined,
+        endDate: params.endDate ? new Date(params.endDate) : undefined,
+      });
       return ctx.json({ data: stats });
     } catch (error) {
       console.error('[GET_CASH_STATS_ERROR]:', error);

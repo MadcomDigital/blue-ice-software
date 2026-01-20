@@ -276,6 +276,7 @@ export async function getDriverDetailStats(driverId: string, params?: { startDat
     completedOrders,
     pendingOrders,
     cancelledOrders,
+    rescheduledOrders,
     financialStats,
     bottleStats,
     recentOrders,
@@ -305,6 +306,7 @@ export async function getDriverDetailStats(driverId: string, params?: { startDat
     db.order.count({ where: completedWhereCondition }),
     db.order.count({ where: { ...whereCondition, status: { in: [OrderStatus.SCHEDULED, OrderStatus.IN_PROGRESS] } } }),
     db.order.count({ where: { ...whereCondition, status: OrderStatus.CANCELLED } }),
+    db.order.count({ where: { ...whereCondition, status: OrderStatus.RESCHEDULED } }),
 
     // Financial statistics
     db.order.aggregate({
@@ -400,6 +402,7 @@ export async function getDriverDetailStats(driverId: string, params?: { startDat
       completedOrders,
       pendingOrders,
       cancelledOrders,
+      rescheduledOrders,
       completionRate: totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0,
     },
     financial: {
@@ -450,9 +453,10 @@ export async function getDriverDeliveries(
     limit: number;
     startDate?: Date;
     endDate?: Date;
+    status?: OrderStatus | 'ALL';
   }
 ) {
-  const { page, limit, startDate, endDate } = params;
+  const { page, limit, startDate, endDate, status = OrderStatus.COMPLETED } = params;
   const skip = (page - 1) * limit;
 
   // Default to current month if no dates provided
@@ -462,7 +466,7 @@ export async function getDriverDeliveries(
 
   const where: Prisma.OrderWhereInput = {
     driverId,
-    status: OrderStatus.COMPLETED,
+    ...(status !== 'ALL' && { status }),
     scheduledDate: { gte: start, lte: end },
   };
 
@@ -492,7 +496,7 @@ export async function getDriverDeliveries(
           },
         },
       },
-      orderBy: { deliveredAt: 'desc' },
+      orderBy: [{ scheduledDate: 'desc' }, { deliveredAt: 'desc' }],
     }),
     db.order.count({ where }),
   ]);
@@ -501,11 +505,14 @@ export async function getDriverDeliveries(
     deliveries: orders.map((order) => ({
       id: order.id,
       readableId: order.readableId,
+      status: order.status,
       customerName: order.customer.user.name,
       customerPhone: order.customer.user.phoneNumber,
       totalAmount: order.totalAmount.toString(),
       cashCollected: order.cashCollected.toString(),
+      scheduledDate: order.scheduledDate,
       deliveredAt: order.deliveredAt,
+      cancellationReason: order.cancellationReason,
       items: order.orderItems.map((item) => ({
         productName: item.product.name,
         quantity: item.quantity,

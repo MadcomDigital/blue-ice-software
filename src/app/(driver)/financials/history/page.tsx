@@ -21,16 +21,20 @@ function HistoryContent() {
   const [customEndDate, setCustomEndDate] = useState('');
 
   // Calculate date range boundaries
-  const today = new Date();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today (midnight)
   let startDate: Date;
-  let endDate = today;
+  let endDate: Date;
 
   switch (dateRange) {
     case 'today':
-      startDate = today;
+      // For "Today" filter, both start and end should be today
+      startDate = new Date(today);
+      endDate = new Date(today);
       break;
     case 'week':
       startDate = startOfWeek(today, { weekStartsOn: 1 });
+      endDate = new Date(today);
       break;
     case 'month':
       startDate = startOfMonth(today);
@@ -38,10 +42,11 @@ function HistoryContent() {
       break;
     case 'custom':
       startDate = customStartDate ? new Date(customStartDate) : subDays(today, 30);
-      endDate = customEndDate ? new Date(customEndDate) : today;
+      endDate = customEndDate ? new Date(customEndDate) : new Date(today);
       break;
     default:
       startDate = startOfMonth(today);
+      endDate = endOfMonth(today);
   }
 
   const { data: historyData, isLoading } = useDriverFinancialHistory({

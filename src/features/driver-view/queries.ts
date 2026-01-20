@@ -64,13 +64,13 @@ export async function getDriverStats(driverId: string, date: Date) {
       _count: true,
     }),
 
-    // Expenses
+    // Expenses - only count APPROVED expenses (PENDING and REJECTED should not affect cash)
     db.expense.aggregate({
       where: {
         driverId,
         date: { gte: startOfDay, lte: endOfDay },
         paymentMethod: 'CASH_ON_HAND',
-        status: { not: 'REJECTED' },
+        status: 'APPROVED',
       },
       _sum: { amount: true },
     }),

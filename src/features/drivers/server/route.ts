@@ -126,11 +126,12 @@ const app = new Hono()
         endDate: z.string().optional(),
         page: z.coerce.number().int().min(1).default(1),
         limit: z.coerce.number().int().min(1).max(100).default(10),
+        status: z.enum(['SCHEDULED', 'PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'RESCHEDULED', 'ALL']).optional(),
       }),
     ),
     async (ctx) => {
       const { id } = ctx.req.param();
-      const { startDate, endDate, page, limit } = ctx.req.valid('query');
+      const { startDate, endDate, page, limit, status } = ctx.req.valid('query');
 
       try {
         const result = await getDriverDeliveries(id, {
@@ -138,6 +139,7 @@ const app = new Hono()
           limit,
           startDate: startDate ? new Date(startDate) : undefined,
           endDate: endDate ? new Date(endDate) : undefined,
+          status: status as any,
         });
         return ctx.json({ data: result });
       } catch (error) {

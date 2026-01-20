@@ -18,7 +18,7 @@ function DriversContent() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="main-heading">Fleet Drivers</h1>
+        <h1 className="main-heading">Drivers List</h1>
         <Button onClick={() => open()}>
           <Plus className="mr-2 h-4 w-4" />
           Add Driver

@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useGetDriverDeliveries } from '@/features/drivers/api/use-get-driver-deliveries';
+import { DeliveryStatusFilter, useGetDriverDeliveries } from '@/features/drivers/api/use-get-driver-deliveries';
 import { useGetDriverStats } from '@/features/drivers/api/use-get-driver-stats';
 
 function DriverDetailContent() {
@@ -27,6 +27,7 @@ function DriverDetailContent() {
   // Pagination state for recent orders
   const [ordersPage, setOrdersPage] = useState(1);
   const [ordersLimit, setOrdersLimit] = useState(10);
+  const [statusFilter, setStatusFilter] = useState<DeliveryStatusFilter>('ALL');
 
   // Calculate date range based on selection
   const getDateRange = () => {
@@ -69,6 +70,7 @@ function DriverDetailContent() {
     endDate,
     page: ordersPage,
     limit: ordersLimit,
+    status: statusFilter,
   });
 
   if (isLoading) {
@@ -235,10 +237,37 @@ function DriverDetailContent() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summary.totalOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              {summary.completedOrders} completed • {summary.pendingOrders} pending
-            </p>
-            <div className="mt-2">
+            <div className="mt-2 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  Completed
+                </span>
+                <span className="font-medium">{summary.completedOrders}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                  Pending/In Progress
+                </span>
+                <span className="font-medium">{summary.pendingOrders}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  Cancelled
+                </span>
+                <span className="font-medium">{summary.cancelledOrders}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                  Rescheduled
+                </span>
+                <span className="font-medium">{summary.rescheduledOrders}</span>
+              </div>
+            </div>
+            <div className="mt-3">
               <div className="flex items-center gap-2">
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-secondary">
                   <div className="h-full bg-primary" style={{ width: `${summary.completionRate}%` }} />
@@ -311,11 +340,31 @@ function DriverDetailContent() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Recent Deliveries</CardTitle>
+            <CardTitle>Orders</CardTitle>
             <CardDescription>
-              {deliveriesData?.pagination.total || 0} total completed orders
+              {deliveriesData?.pagination.total || 0} {statusFilter === 'ALL' ? 'total' : statusFilter.toLowerCase()} orders
             </CardDescription>
           </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(val) => {
+              setStatusFilter(val as DeliveryStatusFilter);
+              setOrdersPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Orders</SelectItem>
+              <SelectItem value="COMPLETED">Completed</SelectItem>
+              <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+              <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              <SelectItem value="RESCHEDULED">Rescheduled</SelectItem>
+            </SelectContent>
+          </Select>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -326,21 +375,56 @@ function DriverDetailContent() {
                 ))}
               </div>
             ) : !deliveriesData?.deliveries.length ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No completed orders in this period</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No {statusFilter === 'ALL' ? '' : statusFilter.toLowerCase()} orders in this period
+              </p>
             ) : (
               <>
                 {deliveriesData.deliveries.map((order: any) => (
                   <div key={order.id} className="rounded-lg border p-4">
                     <div className="mb-2 flex items-start justify-between">
                       <div>
-                        <p className="font-medium">Order #{order.readableId}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">Order #{order.readableId}</p>
+                          <Badge
+                            variant={
+                              order.status === 'COMPLETED'
+                                ? 'default'
+                                : order.status === 'CANCELLED'
+                                  ? 'destructive'
+                                  : order.status === 'RESCHEDULED'
+                                    ? 'secondary'
+                                    : order.status === 'IN_PROGRESS'
+                                      ? 'outline'
+                                      : 'secondary'
+                            }
+                            className={
+                              order.status === 'COMPLETED'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : order.status === 'RESCHEDULED'
+                                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                  : order.status === 'IN_PROGRESS'
+                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                    : ''
+                            }
+                          >
+                            {order.status.replace('_', ' ')}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">{order.customerName}</p>
                         <p className="text-xs text-muted-foreground">{order.customerPhone}</p>
+                        {order.cancellationReason && (
+                          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+                            Reason: {order.cancellationReason.replace(/_/g, ' ')}
+                          </p>
+                        )}
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">PKR {order.cashCollected}</p>
+                        {order.status === 'COMPLETED' && <p className="font-medium">PKR {order.cashCollected}</p>}
                         <p className="text-xs text-muted-foreground">
-                          {order.deliveredAt ? format(new Date(order.deliveredAt), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                          {order.status === 'COMPLETED' && order.deliveredAt
+                            ? format(new Date(order.deliveredAt), 'MMM dd, yyyy HH:mm')
+                            : format(new Date(order.scheduledDate), 'MMM dd, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -351,9 +435,11 @@ function DriverDetailContent() {
                           <span>
                             {item.quantity}x {item.productName}
                           </span>
-                          <span className="text-muted-foreground">
-                            Filled: {item.filledGiven} • Empty: {item.emptyTaken}
-                          </span>
+                          {order.status === 'COMPLETED' && (
+                            <span className="text-muted-foreground">
+                              Filled: {item.filledGiven} • Empty: {item.emptyTaken}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -365,11 +451,14 @@ function DriverDetailContent() {
                   <div className="flex-1 text-sm text-muted-foreground">
                     Showing {(ordersPage - 1) * ordersLimit + 1} to {Math.min(ordersPage * ordersLimit, deliveriesData.pagination.total)} of{' '}
                     {deliveriesData.pagination.total} orders
-                    <div className="inline-block ml-4">
-                      <Select value={ordersLimit.toString()} onValueChange={(val) => {
-                        setOrdersLimit(parseInt(val));
-                        setOrdersPage(1);
-                      }}>
+                    <div className="ml-4 inline-block">
+                      <Select
+                        value={ordersLimit.toString()}
+                        onValueChange={(val) => {
+                          setOrdersLimit(parseInt(val));
+                          setOrdersPage(1);
+                        }}
+                      >
                         <SelectTrigger className="h-8 w-[130px]">
                           <SelectValue placeholder="Per page" />
                         </SelectTrigger>

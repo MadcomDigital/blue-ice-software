@@ -2,7 +2,7 @@
 
 import { CashHandoverStatus } from '@prisma/client';
 import { format } from 'date-fns';
-import { AlertCircle, CheckCircle, Clock, DollarSign, Eye, Filter, TrendingUp, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, DollarSign, Eye, Filter, Receipt, TrendingUp, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Suspense, useState } from 'react';
 
@@ -24,7 +24,10 @@ function CashManagementContent() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: stats, isLoading: statsLoading } = useGetCashStats();
+  const { data: stats, isLoading: statsLoading } = useGetCashStats({
+    startDate,
+    endDate,
+  });
   const { data: handovers, isLoading: handoversLoading } = useGetCashHandovers({
     status: statusFilter,
     startDate,
@@ -79,58 +82,99 @@ function CashManagementContent() {
       {/* Statistics Cards */}
       {statsLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(8)].map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Cash Collected Today</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">PKR {stats?.today.totalCashCollected || '0'}</div>
-              <p className="text-xs text-muted-foreground">{stats?.today.totalCashOrders || 0} cash orders</p>
-            </CardContent>
-          </Card>
+        <>
+          {/* Cash & Handover Stats */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{startDate && endDate ? 'Cash Collected' : 'Cash Collected Today'}</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">PKR {stats?.today.totalCashCollected || '0'}</div>
+                <p className="text-xs text-muted-foreground">{stats?.today.totalCashOrders || 0} cash orders</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-yellow-200 bg-yellow-50/50 dark:border-yellow-900 dark:bg-yellow-950/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-yellow-900 dark:text-yellow-100">Pending Handovers</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats?.handovers.pending || 0}</div>
-              <p className="text-xs text-muted-foreground">PKR {stats?.handovers.pendingAmount || '0'} pending</p>
-            </CardContent>
-          </Card>
+            <Card className="border-yellow-200 bg-yellow-50/50 dark:border-yellow-900 dark:bg-yellow-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-yellow-900 dark:text-yellow-100">Pending Handovers</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats?.handovers.pending || 0}</div>
+                <p className="text-xs text-muted-foreground">PKR {stats?.handovers.pendingAmount || '0'} pending</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-green-900 dark:text-green-100">Verified Today</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.handovers.verified || 0}</div>
-              <p className="text-xs text-muted-foreground">PKR {stats?.handovers.verifiedAmount || '0'} verified</p>
-            </CardContent>
-          </Card>
+            <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-green-900 dark:text-green-100">
+                  {startDate && endDate ? 'Verified Handovers' : 'Verified Today'}
+                </CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.handovers.verified || 0}</div>
+                <p className="text-xs text-muted-foreground">PKR {stats?.handovers.verifiedAmount || '0'} verified</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-red-900 dark:text-red-100">Total Discrepancy</CardTitle>
-              <TrendingUp className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                PKR {stats?.handovers.totalDiscrepancy?.toFixed(2) || '0'}
-              </div>
-              <p className="text-xs text-muted-foreground">{stats?.alerts.largeDiscrepancies || 0} large discrepancies</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card className="border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-red-900 dark:text-red-100">Unresolved Discrepancy</CardTitle>
+                <TrendingUp className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  PKR {stats?.handovers.totalDiscrepancy?.toFixed(2) || '0'}
+                </div>
+                <p className="text-xs text-muted-foreground">Unresolved discrepancies from pending handovers</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Expense Stats */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-amber-900 dark:text-amber-100">Pending Expenses</CardTitle>
+                <Receipt className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats?.expenses?.pending || 0}</div>
+                <p className="text-xs text-muted-foreground">PKR {stats?.expenses?.pendingAmount || '0'} awaiting approval</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-green-900 dark:text-green-100">Approved Expenses</CardTitle>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.expenses?.approved || 0}</div>
+                <p className="text-xs text-muted-foreground">PKR {stats?.expenses?.approvedAmount || '0'} approved</p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-red-900 dark:text-red-100">Rejected Expenses</CardTitle>
+                <XCircle className="h-4 w-4 text-red-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600 dark:text-red-400">{stats?.expenses?.rejected || 0}</div>
+                <p className="text-xs text-muted-foreground">PKR {stats?.expenses?.rejectedAmount || '0'} rejected</p>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Filters */}
