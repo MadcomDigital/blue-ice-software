@@ -79,7 +79,7 @@ export const ReturnSheetForm = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {drivers.data.map((driver: any) => (
+                        {drivers?.data?.map((driver: any) => (
                           <SelectItem key={driver.id} value={driver.id}>
                             {driver.user.name} ({driver.vehicleNo})
                           </SelectItem>
@@ -135,7 +135,7 @@ export const ReturnSheetForm = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {products.data.map((product: any) => (
+                            {products?.data?.map((product: any) => (
                               <SelectItem key={product.id} value={product.id}>
                                 {product.name}
                               </SelectItem>

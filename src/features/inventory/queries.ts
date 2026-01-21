@@ -1,4 +1,4 @@
-import { HandoverType, InventoryHandoverStatus, StockTransactionType } from '@prisma/client';
+import { HandoverType, InventoryHandoverStatus, OrderStatus, StockTransactionType } from '@prisma/client';
 
 import { db } from '@/lib/db';
 
@@ -239,6 +239,100 @@ export async function getBottlesWithCustomers(productId?: string) {
 // ------------------------------------------------------------------
 // NEW: TRUCK INVENTORY LOGIC (LOAD & RETURN)
 // ------------------------------------------------------------------
+
+/**
+ * Get total scheduled stock for a driver on a specific date
+ * Used for "Smart Load" automation
+ */
+export async function getDriverScheduledStock(driverId: string, date: Date) {
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const orders = await db.order.findMany({
+    where: {
+      driverId,
+      scheduledDate: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+      status: {
+        in: [OrderStatus.SCHEDULED, OrderStatus.PENDING, OrderStatus.IN_PROGRESS],
+      },
+    },
+    select: {
+      orderItems: {
+        select: {
+          productId: true,
+          quantity: true,
+        },
+      },
+    },
+  });
+
+  // Aggregate quantities by product
+  const stockMap = new Map<string, number>();
+
+  orders.forEach((order) => {
+    order.orderItems.forEach((item) => {
+      const current = stockMap.get(item.productId) || 0;
+      stockMap.set(item.productId, current + item.quantity);
+    });
+  });
+
+  return Array.from(stockMap.entries()).map(([productId, quantity]) => ({
+    productId,
+    quantity,
+  }));
+}
+
+/**
+ * Get recent inventory handovers (Load/Return sheets)
+ */
+export async function getInventoryHandovers(limit = 10) {
+  const handovers = await db.inventoryHandover.findMany({
+    take: limit,
+    orderBy: { createdAt: 'desc' },
+    include: {
+      driver: {
+        include: {
+          user: {
+            select: { name: true, vehicleNo: true },
+          },
+        },
+      },
+      warehouseMgr: {
+        select: { name: true },
+      },
+      items: {
+        include: {
+          product: {
+            select: { name: true },
+          },
+        },
+      },
+    },
+  });
+
+  return handovers.map(h => ({
+    id: h.id,
+    readableId: h.readableId,
+    date: h.date,
+    type: h.type,
+    status: h.status,
+    driverName: h.driver.user.name,
+    vehicleNo: h.driver.vehicleNo,
+    managerName: h.warehouseMgr.name,
+    createdAt: h.createdAt,
+    itemCount: h.items.reduce((sum, item) => sum + item.quantity, 0),
+    items: h.items.map(i => ({
+      productName: i.product.name,
+      quantity: i.quantity,
+      condition: i.condition,
+    })),
+  }));
+}
 
 /**
  * Create a LOAD Handover (Warehouse -> Truck)
