@@ -305,13 +305,8 @@ const app = new Hono()
       const { userId } = ctx.req.param();
 
       // Authorization Logic
-      if (user.role === UserRole.SUPER_ADMIN) {
-        // SUPER_ADMIN can do anything
-      } else if (user.role === UserRole.ADMIN) {
-        // ADMIN can suspend, but cannot change roles
-        if (role !== undefined) {
-          return ctx.json({ error: 'Only Super Admin can change user roles' }, 403);
-        }
+      if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
+        // SUPER_ADMIN and ADMIN can update roles and status
       } else {
         // Others cannot access this endpoint
         return ctx.json({ error: 'Unauthorized access' }, 403);
