@@ -1,11 +1,16 @@
 import { CashHandoverStatus, ExpenseStatus, OrderStatus, PaymentMethod } from '@prisma/client';
-import { differenceInDays, endOfDay, format, startOfDay, subDays } from 'date-fns';
+import { differenceInDays, format, subDays } from 'date-fns';
 
 import { db } from '@/lib/db';
+import { toUtcStartOfDay, toUtcEndOfDay, getUtcToday, formatUtcDate } from '@/lib/date-utils';
 
 export async function getComprehensiveDashboardData(params?: { startDate?: Date; endDate?: Date }) {
-  const { startDate = startOfDay(new Date()), endDate = endOfDay(new Date()) } = params || {};
-  const today = startOfDay(new Date());
+  const now = new Date();
+  // Ensure we use UTC boundaries
+  const startDate = params?.startDate ? toUtcStartOfDay(params.startDate) : toUtcStartOfDay(now);
+  const endDate = params?.endDate ? toUtcEndOfDay(params.endDate) : toUtcEndOfDay(now);
+
+  const today = toUtcStartOfDay(now);
 
   // Determine Historical vs Live Periods
   const isHistoricalOnly = endDate < today;
@@ -86,6 +91,9 @@ export async function getComprehensiveDashboardData(params?: { startDate?: Date;
     });
 
     // Live Revenue Trend (Group by Date)
+    // Note: When grouping by DATE in Postgres, it uses the server timezone unless specified.
+    // Ideally we should group by the UTC date string or ensure session timezone is UTC.
+    // For now, assuming standard setup, but let's be careful.
     const liveTrendRaw = await db.$queryRaw`
       SELECT
         DATE("scheduledDate") as date,
@@ -100,7 +108,7 @@ export async function getComprehensiveDashboardData(params?: { startDate?: Date;
     `;
 
     liveTrends = (liveTrendRaw as any[]).map((t) => ({
-      date: new Date(t.date),
+      date: new Date(t.date), // This might be local if simple new Date()
       revenue: Number(t.revenue || 0),
       orders: Number(t.orders || 0),
     }));
@@ -446,7 +454,7 @@ export async function getComprehensiveDashboardData(params?: { startDate?: Date;
 
     dailyStats.forEach((stat) => {
       combinedOrderTrends.push({
-        date: format(stat.date, 'MMM dd'),
+        date: format(new Date(stat.date), 'MMM dd'), // format uses local, but consistent display
         [OrderStatus.COMPLETED]: stat.ordersCompleted,
         [OrderStatus.PENDING]: stat.ordersPending,
         [OrderStatus.CANCELLED]: stat.ordersCancelled,

@@ -7,15 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { format } from 'date-fns';
-
 import { useGetCashStats } from '@/features/cash-management/api/use-get-cash-stats';
 
 export function CashDashboardWidgets() {
   const router = useRouter();
-  // Use local date to avoid server UTC mismatch
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const { data: stats, isLoading } = useGetCashStats({ startDate: today, endDate: today });
+  const { data: stats, isLoading } = useGetCashStats();
 
   if (isLoading) {
     return (
@@ -109,9 +105,7 @@ export function CashDashboardWidgets() {
 
 export function CashQuickActionsWidget() {
   const router = useRouter();
-  // Use local date to avoid server UTC mismatch
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const { data: stats } = useGetCashStats({ startDate: today, endDate: today });
+  const { data: stats } = useGetCashStats();
 
   return (
     <Card>

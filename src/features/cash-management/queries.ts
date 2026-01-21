@@ -1,6 +1,7 @@
 import { CashHandoverStatus, OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 
 import { db } from '@/lib/db';
+import { toUtcStartOfDay, toUtcEndOfDay } from '@/lib/date-utils';
 
 // --------------------------------------------------------
 // 1. DRIVER FUNCTIONS - End of Day Cash Handover
@@ -78,10 +79,8 @@ export async function getPendingCashFromUnlinkedItems(driverId: string) {
  * Uses transaction-based logic: pending cash is sum of ALL unlinked items
  */
 export async function getDriverDaySummary(driverId: string, date: Date) {
-  const startOfDay = new Date(date);
-  startOfDay.setUTCHours(0, 0, 0, 0);
-  const endOfDay = new Date(date);
-  endOfDay.setUTCHours(23, 59, 59, 999);
+  const startOfDay = toUtcStartOfDay(date);
+  const endOfDay = toUtcEndOfDay(date);
 
   const [ordersData, bottleData, pendingCashData, activeHandover] = await Promise.all([
     // Order counts for TODAY
@@ -134,12 +133,6 @@ export async function getDriverDaySummary(driverId: string, date: Date) {
     date: order.scheduledDate,
   }));
 
-  // If there is an active pending handover, we assume the pending cash is effectively "0"
-  // because it's locked in that handover until verified or cancelled.
-  // Or should we show the handover amount?
-  // The UI expects `totalExpectedCash` to be the amount to submit.
-  // If a handover is already submitted, expected is 0 (or N/A).
-
   return {
     // Today's stats (Operational)
     totalOrders,
@@ -166,14 +159,14 @@ export async function getDriverDaySummary(driverId: string, date: Date) {
     // Active Handover
     todayHandover: activeHandover
       ? {
-        id: activeHandover.id,
-        status: activeHandover.status,
-        actualCash: activeHandover.actualCash.toString(),
-        expectedCash: activeHandover.expectedCash.toString(),
-        discrepancy: activeHandover.discrepancy.toString(),
-        submittedAt: activeHandover.submittedAt,
-        verifiedAt: activeHandover.verifiedAt,
-      }
+          id: activeHandover.id,
+          status: activeHandover.status,
+          actualCash: activeHandover.actualCash.toString(),
+          expectedCash: activeHandover.expectedCash.toString(),
+          discrepancy: activeHandover.discrepancy.toString(),
+          submittedAt: activeHandover.submittedAt,
+          verifiedAt: activeHandover.verifiedAt,
+        }
       : null,
 
     isHandoverSubmitted: !!activeHandover,
@@ -195,8 +188,7 @@ export async function submitCashHandover(data: {
 
   // Note: 'date' argument is mostly metadata now, as we link all unlinked items.
   // However, we still use it for the handover record date.
-  const normalizedDate = new Date(date);
-  normalizedDate.setHours(0, 0, 0, 0);
+  const normalizedDate = toUtcStartOfDay(date);
 
   return await db.$transaction(async (tx) => {
     // 1. Fetch ALL unlinked cash orders (The "Snapshot")
@@ -210,12 +202,7 @@ export async function submitCashHandover(data: {
       select: { id: true, cashCollected: true },
     });
 
-    // 2. Fetch specific expenses to link (or all unlinked if not specified? Let's stick to selected for safety, or all for simplicity in Phase 1)
-    // Phase 1 Plan said: "Fetch unlinked approved expenses".
-    // If expenseIds provided, verify they are unlinked. If not, fetch all unlinked?
-    // Let's assume frontend sends expenseIds OR we fetch all unlinked if we want to force "All Pending".
-    // For Phase 1, "All or Nothing" means we should probably link ALL unlinked approved expenses.
-
+    // 2. Fetch specific expenses to link
     const unlinkedExpenses = await tx.expense.findMany({
       where: {
         driverId,
@@ -246,8 +233,6 @@ export async function submitCashHandover(data: {
         status: CashHandoverStatus.PENDING,
         // Metrics
         cashOrders: unlinkedOrders.length,
-        // We can fetch total/completed orders for the day if we want accurate day-stats,
-        // but for transaction-based, "cashOrders" is the most relevant metric.
       },
     });
 
@@ -331,8 +316,8 @@ export async function getCashHandovers(params: {
     ...(startDate &&
       endDate && {
       date: {
-        gte: startDate,
-        lte: endDate,
+        gte: toUtcStartOfDay(startDate),
+        lte: toUtcEndOfDay(endDate),
       },
     }),
   };
@@ -498,7 +483,7 @@ export async function verifyCashHandover(data: {
     // The requirement "Admin rejects but forgets to communicate" implies orders should return to pending.
     // Yes, if REJECTED, we must unlink so they appear in the next handover.
     if (status === CashHandoverStatus.REJECTED) {
-      await tx.order.updateMany({
+       await tx.order.updateMany({
         where: { cashHandoverId: id },
         data: { cashHandoverId: null },
       });
@@ -520,11 +505,9 @@ export async function getCashDashboardStats(options?: { startDate?: Date; endDat
   const { startDate, endDate } = options || {};
 
   // If no dates, default to today. If one date, use it for both start and end.
-  const startOfRange = startDate ? new Date(startDate) : new Date();
-  startOfRange.setUTCHours(0, 0, 0, 0);
-
-  const endOfRange = endDate ? new Date(endDate) : new Date(startOfRange);
-  endOfRange.setUTCHours(23, 59, 59, 999);
+  const now = new Date();
+  const startOfRange = startDate ? toUtcStartOfDay(startDate) : toUtcStartOfDay(now);
+  const endOfRange = endDate ? toUtcEndOfDay(endDate) : toUtcEndOfDay(startOfRange);
 
   const [handoverStats, todayCashOrders, pendingHandovers, discrepancies, expenseStats] = await Promise.all([
     // Handover status breakdown
@@ -546,7 +529,7 @@ export async function getCashDashboardStats(options?: { startDate?: Date; endDat
       where: {
         // This is tricky. Orders are on scheduledDate, but handover is on `date`.
         // We should probably show cash collected within the date range, regardless of handover date.
-        scheduledDate: { gte: startOfRange, lte: endOfRange },
+        completedAt: { gte: startOfRange, lte: endOfRange },
         status: OrderStatus.COMPLETED,
         paymentMethod: PaymentMethod.CASH,
       },
@@ -607,11 +590,7 @@ export async function getCashDashboardStats(options?: { startDate?: Date; endDat
       verifiedAmount: verified?._sum.actualCash?.toString() || '0',
       rejected: rejected?._count.id || 0,
       // Only show unresolved (pending) discrepancies - verified ones are already settled
-      // UPDATE: User wants to see ALL discrepancies for the day (e.g. shortages from rejected expenses)
-      totalDiscrepancy: handoverStats.reduce(
-        (sum, s) => sum + (s._sum.discrepancy ? parseFloat(s._sum.discrepancy.toString()) : 0),
-        0
-      ),
+      totalDiscrepancy: pendingDiscrepancy,
     },
     expenses: {
       pending: pendingExpenses?._count.id || 0,
@@ -669,10 +648,8 @@ export async function getDriverFinancialHistory(
   const end = endDate || new Date();
   const start = startDate || new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const startOfRange = new Date(start);
-  startOfRange.setUTCHours(0, 0, 0, 0);
-  const endOfRange = new Date(end);
-  endOfRange.setUTCHours(23, 59, 59, 999);
+  const startOfRange = toUtcStartOfDay(start);
+  const endOfRange = toUtcEndOfDay(end);
 
   const skip = (page - 1) * limit;
 
@@ -862,12 +839,13 @@ export async function getDriverFinancialHistory(
 export async function getCashCollectionTrends(days = 30) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
-  startDate.setUTCHours(0, 0, 0, 0);
+
+  const startOfRange = toUtcStartOfDay(startDate);
 
   const trends = await db.cashHandover.groupBy({
     by: ['date'],
     where: {
-      date: { gte: startDate },
+      date: { gte: startOfRange },
       status: CashHandoverStatus.VERIFIED,
     },
     _sum: {

@@ -71,13 +71,9 @@ const app = new Hono()
   })
   .get('/', sessionMiddleware, zValidator('query', getDriversQuerySchema), async (ctx) => {
     const params = ctx.req.valid('query');
-    const dateParam = ctx.req.query('date');
 
     try {
-      const result = await getDrivers({
-        ...params,
-        date: dateParam ? new Date(dateParam) : undefined,
-      });
+      const result = await getDrivers(params);
       return ctx.json(result);
     } catch (error) {
       return ctx.json({ error: 'Failed to fetch drivers' }, 500);
@@ -102,19 +98,16 @@ const app = new Hono()
       z.object({
         startDate: z.string().optional(),
         endDate: z.string().optional(),
-        date: z.string().optional(),
       }),
     ),
     async (ctx) => {
       const { id } = ctx.req.param();
       const { startDate, endDate } = ctx.req.valid('query');
-      const dateParam = ctx.req.query('date');
 
       try {
         const stats = await getDriverDetailStats(id, {
           startDate: startDate ? new Date(startDate) : undefined,
           endDate: endDate ? new Date(endDate) : undefined,
-          date: dateParam ? new Date(dateParam) : undefined,
         });
         return ctx.json({ data: stats });
       } catch (error) {
