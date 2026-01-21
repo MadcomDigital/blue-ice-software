@@ -296,9 +296,10 @@ export async function getInventoryHandovers(limit = 10) {
     orderBy: { createdAt: 'desc' },
     include: {
       driver: {
-        include: {
+        select: {
+          vehicleNo: true,
           user: {
-            select: { name: true, vehicleNo: true },
+            select: { name: true },
           },
         },
       },
