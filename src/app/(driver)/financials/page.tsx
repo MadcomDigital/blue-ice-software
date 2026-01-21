@@ -84,7 +84,8 @@ function FinancialsContent() {
 
   const cashCollected = parseFloat(summary?.grossCash || '0');
   const expenses = parseFloat(summary?.expensesAmount || '0');
-  const todayNetCash = parseFloat(summary?.expectedCash || '0');
+  // Today's net cash = gross cash - expenses
+  const todayNetCash = cashCollected - expenses;
   const totalCashToHandover = parseFloat(summary?.totalExpectedCash || '0');
 
   // Pending cash from previous days

@@ -7,6 +7,7 @@ export const submitCashHandoverSchema = z.object({
   driverNotes: z.string().optional(),
   shiftStart: z.string().optional(), // ISO timestamp
   shiftEnd: z.string().optional(), // ISO timestamp
+  expenseIds: z.array(z.string()).optional(), // Optional expense IDs to link
 });
 
 export const verifyCashHandoverSchema = z.object({

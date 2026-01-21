@@ -159,14 +159,14 @@ export async function getDriverDaySummary(driverId: string, date: Date) {
     // Active Handover
     todayHandover: activeHandover
       ? {
-          id: activeHandover.id,
-          status: activeHandover.status,
-          actualCash: activeHandover.actualCash.toString(),
-          expectedCash: activeHandover.expectedCash.toString(),
-          discrepancy: activeHandover.discrepancy.toString(),
-          submittedAt: activeHandover.submittedAt,
-          verifiedAt: activeHandover.verifiedAt,
-        }
+        id: activeHandover.id,
+        status: activeHandover.status,
+        actualCash: activeHandover.actualCash.toString(),
+        expectedCash: activeHandover.expectedCash.toString(),
+        discrepancy: activeHandover.discrepancy.toString(),
+        submittedAt: activeHandover.submittedAt,
+        verifiedAt: activeHandover.verifiedAt,
+      }
       : null,
 
     isHandoverSubmitted: !!activeHandover,
@@ -483,7 +483,7 @@ export async function verifyCashHandover(data: {
     // The requirement "Admin rejects but forgets to communicate" implies orders should return to pending.
     // Yes, if REJECTED, we must unlink so they appear in the next handover.
     if (status === CashHandoverStatus.REJECTED) {
-       await tx.order.updateMany({
+      await tx.order.updateMany({
         where: { cashHandoverId: id },
         data: { cashHandoverId: null },
       });
@@ -524,19 +524,18 @@ export async function getCashDashboardStats(options?: { startDate?: Date; endDat
       },
     }),
 
-    // Today's cash orders
+    // Today's cash orders (use deliveredAt for completed orders, fallback to scheduledDate)
     db.order.aggregate({
       where: {
-        // This is tricky. Orders are on scheduledDate, but handover is on `date`.
-        // We should probably show cash collected within the date range, regardless of handover date.
-        completedAt: { gte: startOfRange, lte: endOfRange },
+        // Use scheduledDate for consistency since deliveredAt may be null
+        scheduledDate: { gte: startOfRange, lte: endOfRange },
         status: OrderStatus.COMPLETED,
         paymentMethod: PaymentMethod.CASH,
       },
       _sum: {
         cashCollected: true,
       },
-      _count: { id: true },
+      _count: true,
     }),
 
     // Pending handovers count - this should be global, not date-filtered
@@ -580,8 +579,8 @@ export async function getCashDashboardStats(options?: { startDate?: Date; endDat
 
   return {
     today: {
-      totalCashOrders: todayCashOrders._count.id,
-      totalCashCollected: todayCashOrders._sum.cashCollected?.toString() || '0',
+      totalCashOrders: todayCashOrders._count ?? 0,
+      totalCashCollected: todayCashOrders._sum?.cashCollected?.toString() || '0',
     },
     handovers: {
       pending: pending?._count.id || 0,

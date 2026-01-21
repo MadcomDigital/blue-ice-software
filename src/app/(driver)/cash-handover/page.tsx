@@ -75,8 +75,8 @@ function CashHandoverContent() {
     );
   }
 
-  // Today's expected cash
-  const todayExpectedCash = parseFloat(summary?.expectedCash || '0');
+  // Today's expected cash (gross cash - expenses for display purposes)
+  const todayExpectedCash = parseFloat(summary?.grossCash || '0') - parseFloat(summary?.expensesAmount || '0');
 
   // Pending cash from previous days
   const pendingFromPreviousDays = summary?.pendingFromPreviousDays;
