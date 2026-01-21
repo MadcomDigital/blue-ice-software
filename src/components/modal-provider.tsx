@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { LoadSheetModal } from '@/features/inventory/components/load-sheet-modal';
+import { ReturnSheetModal } from '@/features/inventory/components/return-sheet-modal';
 import { InvoiceModal } from '@/features/orders/components/invoice-modal';
 import { OrderFormModal } from '@/features/orders/components/order-form-modal';
 
@@ -18,7 +20,8 @@ export const ModalProvider = () => {
     <>
       <OrderFormModal />
       <InvoiceModal />
-      {/* <CreateProductModal /> */}
+      <LoadSheetModal />
+      <ReturnSheetModal />
     </>
   );
 };

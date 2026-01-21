@@ -1,10 +1,29 @@
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
+import { z } from 'zod';
 
 import { sessionMiddleware } from '@/lib/session-middleware';
 
-import { adjustStock, getBottlesWithCustomers, getInventoryStats, recordDamageOrLoss, refillBottles, restockProduct } from '../queries';
-import { adjustmentSchema, damageSchema, refillSchema, restockSchema } from '../schema';
+import {
+  adjustStock,
+  createLoadHandover,
+  createReturnHandover,
+  getBottlesWithCustomers,
+  getDriverScheduledStock,
+  getInventoryHandovers,
+  getInventoryStats,
+  recordDamageOrLoss,
+  refillBottles,
+  restockProduct,
+} from '../queries';
+import {
+  adjustmentSchema,
+  damageSchema,
+  loadHandoverSchema,
+  refillSchema,
+  restockSchema,
+  returnHandoverSchema,
+} from '../schema';
 
 const app = new Hono()
   .get('/stats', sessionMiddleware, async (c) => {
@@ -16,6 +35,45 @@ const app = new Hono()
     const bottles = await getBottlesWithCustomers(productId);
     return c.json(bottles);
   })
+  .get(
+    '/driver-scheduled-stock',
+    sessionMiddleware,
+    zValidator(
+      'query',
+      z.object({
+        driverId: z.string().min(1),
+        date: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid date'),
+      })
+    ),
+    async (c) => {
+      const { driverId, date } = c.req.valid('query');
+      try {
+        const stock = await getDriverScheduledStock(driverId, new Date(date));
+        return c.json({ success: true, data: stock });
+      } catch (error: any) {
+        return c.json({ success: false, error: error.message }, 500);
+      }
+    }
+  )
+  .get(
+    '/handovers',
+    sessionMiddleware,
+    zValidator(
+      'query',
+      z.object({
+        limit: z.coerce.number().optional().default(10),
+      })
+    ),
+    async (c) => {
+      const { limit } = c.req.valid('query');
+      try {
+        const handovers = await getInventoryHandovers(limit);
+        return c.json({ success: true, data: handovers });
+      } catch (error: any) {
+        return c.json({ success: false, error: error.message }, 500);
+      }
+    }
+  )
   .post('/restock', sessionMiddleware, zValidator('json', restockSchema), async (c) => {
     const data = c.req.valid('json');
     const product = await restockProduct(data);
@@ -35,6 +93,43 @@ const app = new Hono()
     const data = c.req.valid('json');
     const product = await adjustStock(data);
     return c.json({ success: true, product });
+  })
+  // --- NEW HANDOVER ROUTES ---
+  .post('/handover/load', sessionMiddleware, zValidator('json', loadHandoverSchema), async (c) => {
+    const user = c.get('user');
+    const data = c.req.valid('json');
+
+    try {
+      const handover = await createLoadHandover({
+        ...data,
+        date: new Date(data.date),
+        warehouseMgrId: user.id,
+      });
+      return c.json({ success: true, data: handover });
+    } catch (error: any) {
+      return c.json({ success: false, error: error.message }, 400);
+    }
+  })
+  .post('/handover/return', sessionMiddleware, zValidator('json', returnHandoverSchema), async (c) => {
+    const user = c.get('user');
+    const data = c.req.valid('json');
+
+    try {
+      const items = data.items.map((item) => ({
+        ...item,
+        condition: item.condition as 'FILLED' | 'EMPTY' | 'DAMAGED',
+      }));
+
+      const handover = await createReturnHandover({
+        driverId: data.driverId,
+        date: new Date(data.date),
+        warehouseMgrId: user.id,
+        items,
+      });
+      return c.json({ success: true, data: handover });
+    } catch (error: any) {
+      return c.json({ success: false, error: error.message }, 400);
+    }
   });
 
 export default app;
