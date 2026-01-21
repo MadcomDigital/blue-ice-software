@@ -23,7 +23,6 @@ export const useUpdateStatus = () => {
 
       queryClient.invalidateQueries({
         queryKey: ['users'],
-        exact: true,
       });
     },
     onError: (error) => {

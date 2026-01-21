@@ -71,18 +71,18 @@ export const columns: ColumnDef<any>[] = [
     },
   },
   {
-    accessorKey: 'designation',
+    accessorKey: 'role',
     header: ({ column }) => {
       return (
         <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Designation
+          Role
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       );
     },
     cell: ({ row }) => {
-      const designation = row.original.designation;
-      return <p className="line-clamp-1">{designation}</p>;
+      const role = row.original.role;
+      return <Badge variant="outline">{role}</Badge>;
     },
   },
   {

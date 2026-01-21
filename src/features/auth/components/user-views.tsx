@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DottedSeparator } from '@/components/dotted-separator';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 
@@ -16,10 +17,21 @@ export const UserView = () => {
   const [view, setView] = useQueryState('task-view', {
     defaultValue: 'table',
   });
-  const [{ search }] = useUserFilters();
+  const [{ search, suspended }, setFilters] = useUserFilters();
   const { data: users, isLoading: isLoadingTasks } = useGetUsers({
     search,
+    suspended,
   });
+
+  const onStatusChange = (value: string) => {
+    if (value === 'all') {
+      setFilters({ suspended: null });
+    } else if (value === 'active') {
+      setFilters({ suspended: false });
+    } else if (value === 'suspended') {
+      setFilters({ suspended: true });
+    }
+  };
 
   return (
     <Tabs defaultValue={view} onValueChange={setView} className="w-full flex-1 rounded-lg border">
@@ -47,7 +59,20 @@ export const UserView = () => {
         {/* <DottedSeparator className="my-4" /> */}
 
         <div className="flex flex-col justify-end gap-2 xl:flex-row xl:items-center">
-          {/* <DataFilters hideProjectFilter={hideProjectFilter} /> */}
+          <Select
+            defaultValue="all"
+            onValueChange={onStatusChange}
+            value={suspended === null ? 'all' : suspended ? 'suspended' : 'active'}
+          >
+            <SelectTrigger className="w-full lg:w-[200px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Users</SelectItem>
+              <SelectItem value="active">Active Only</SelectItem>
+              <SelectItem value="suspended">Suspended Only</SelectItem>
+            </SelectContent>
+          </Select>
 
           <DataSearch />
         </div>

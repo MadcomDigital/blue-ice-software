@@ -164,18 +164,24 @@ const app = new Hono()
       'query',
       z.object({
         search: z.string().nullish(),
+        suspended: z.string().optional(),
       }),
     ),
     async (ctx) => {
-      const { search } = ctx.req.valid('query');
+      const { search, suspended } = ctx.req.valid('query');
 
       try {
         const users = await db.user.findMany({
-          where: search
-            ? {
-                OR: [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }],
-              }
-            : undefined,
+          where: {
+            AND: [
+              search
+                ? {
+                    OR: [{ name: { contains: search, mode: 'insensitive' } }, { email: { contains: search, mode: 'insensitive' } }],
+                  }
+                : {},
+              suspended !== undefined ? { suspended: suspended === 'true' } : {},
+            ],
+          },
         });
 
         return ctx.json({ data: users });

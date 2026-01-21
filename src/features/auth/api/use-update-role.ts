@@ -23,7 +23,6 @@ export const useUpdateRole = () => {
 
       queryClient.invalidateQueries({
         queryKey: ['users'],
-        exact: true,
       });
     },
     onError: (error) => {
