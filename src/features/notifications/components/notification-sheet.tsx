@@ -78,30 +78,6 @@ const getNotificationColor = (type: NotificationType) => {
   }
 };
 
-const getNotificationLink = (type: NotificationType, data: any): string | null => {
-  if (!data) return null;
-
-  switch (type) {
-    case 'ORDER_ASSIGNED':
-    case 'ORDER_COMPLETED':
-    case 'ORDER_CANCELLED':
-    case 'ORDER_RESCHEDULED':
-      return data.orderId ? `/orders/${data.orderId}` : '/orders';
-    case 'NEW_CUSTOMER':
-      return data.customerId ? `/customers/${data.customerId}` : '/customers';
-    case 'NEW_DRIVER':
-    case 'DRIVER_ASSIGNED':
-      return data.driverId ? `/drivers/${data.driverId}` : '/drivers';
-    case 'EXPENSE_APPROVED':
-    case 'EXPENSE_REJECTED':
-      return data.expenseId ? `/expenses/${data.expenseId}` : '/expenses';
-    case 'LOW_INVENTORY':
-      return '/inventory';
-    default:
-      return null;
-  }
-};
-
 export const NotificationSheet = () => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -119,11 +95,10 @@ export const NotificationSheet = () => {
       markAsRead.mutate(notification.id);
     }
 
-    // Navigate to relevant page
-    const link = getNotificationLink(notification.type, notification.data);
-    if (link) {
+    // Navigate to relevant page if link exists
+    if (notification.link) {
       setIsOpen(false);
-      router.push(link);
+      router.push(notification.link);
     }
   };
 
@@ -186,7 +161,6 @@ export const NotificationSheet = () => {
               {notifications.map((notification: any) => {
                 const IconComponent = getNotificationIcon(notification.type);
                 const iconColor = getNotificationColor(notification.type);
-                const link = getNotificationLink(notification.type, notification.data);
 
                 return (
                   <div
@@ -226,7 +200,7 @@ export const NotificationSheet = () => {
                     </div>
 
                     {/* Arrow for clickable notifications */}
-                    {link && (
+                    {notification.link && (
                       <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>

@@ -731,6 +731,7 @@ model Notification {
   body  String
   type  String? // "ORDER_ASSIGNED", "EXPENSE_APPROVED"
   data  Json? // { orderId: "..." }
+  link  String? // "/orders/123", "/customers/456"
 
   read   Boolean   @default(false)
   readAt DateTime?
